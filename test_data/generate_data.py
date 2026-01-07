@@ -15,7 +15,7 @@ NUM_SAMPLES = 50000  # Size of our  "Synthetic Leak"
 # - "mistral": Uses Mistral [INST] format
 # - "alpaca": Standard {"instruction", "input", "output"} JSON (Best for Axolotl/Unsloth)
 # - "paper_raw": The exact text format described in the PassLLM USENIX paper
-TARGET_MODEL_FORMAT = "paper_raw"
+TARGET_MODEL_FORMAT = "alpaca"
 OUTPUT_FILE = f"passllm_{TARGET_MODEL_FORMAT}_data.jsonl"
 
 # --- SECTION 2.3: REUSE PATTERNS (Simulating how people change passwords) ---
