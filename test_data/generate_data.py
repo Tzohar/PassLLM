@@ -1,7 +1,7 @@
 import random
 import json
-import pandas as pandas
-from faker import faker
+import pandas as pd
+from faker import Faker
 from datetime import datetime, timedelta
 
 ## Initialize Faker for generating fake data (names, addresses, etc.)
@@ -9,7 +9,6 @@ fake = Faker();
 
 # --- CONFIGURATION ---
 NUM_SAMPLES = 50000  # Size of our  "Synthetic Leak"
-OUTPUT_FILE = "passllm_data.jsonl"
 
 # OPTIONS: "llama3", "mistral", "alpaca", "paper_raw"
 # - "llama3": Uses standard Llama 3 chat template (<|begin_of_text|>...)
@@ -21,7 +20,7 @@ OUTPUT_FILE = f"passllm_{TARGET_MODEL_FORMAT}_data.jsonl"
 
 # --- SECTION 2.3: REUSE PATTERNS (Simulating how people change passwords) ---
 # Common patterns for password reuse - capitalizations and minor substitutions & additions
-def transform_password(base_password):
+def transform_password(base_pw):
     ## Takes a base password and applies a random transformation to simulate reuse
     transformations = [
         lambda x: x.capitalize(),
@@ -59,7 +58,7 @@ def generate_pii_password(profile):
     return random.choice(patterns)(profile)
 
 # --- MAIN GENERATOR ---
-def generate_synthetic_data()
+def generate_synthetic_data():
     data = []
 
     print (f"Generating {NUM_SAMPLES} synthetic user profiles and passwords...")
@@ -75,7 +74,6 @@ def generate_synthetic_data()
             "pet_name": fake.first_name(), 
             "username": fake.user_name(),
             "email": fake.email(),
-            "phone": fake.phone.number()
         }
         # 2. Generate a "Sister Password" (Old password from a 'leak')
         # Sometimes it's totally random, sometimes related to PII
@@ -98,11 +96,17 @@ def generate_synthetic_data()
         # We concatenate all info into a structured string.
         
         # Format: "Name: [N], Born: [Y], User: [U], OldPW: [PW] ->"
-        prompt_text = (
+        user_input_str = (
             f"Name: {profile['first_name']} {profile['last_name']}, "
             f"Born: {profile['birth_year']}, "
             f"User: {profile['username']}, "
             f"SisterPW: {sister_password}"
+        )
+        
+        # 1. Define the System Prompt (Section 4.2)
+        paper_system_prompt = (
+            "As a targeted password guessing model, your task is to utilize the "
+            "provided information to guess the corresponding password."
         )
 
         # SELECT FORMATTING FUNCTION
@@ -167,5 +171,5 @@ def format_alpaca(system_prompt, user_input, target_output):
     }
 
 if __name__ == "__main__":
-    generate_synthetic_dataset()
+    generate_synthetic_data()
 
