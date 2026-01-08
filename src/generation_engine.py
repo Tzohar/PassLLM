@@ -1,0 +1,145 @@
+import torch
+import torch.nn.functional as F
+from typing import List, Tuple, Dict
+
+def dynamic_beam_search(
+    model, 
+    tokenizer, 
+    auxiliary_info_ids: torch.Tensor, 
+    max_depth: int = 16, 
+    beam_width_schedule: List[int] = None, 
+    batch_size: int = 10, 
+    epsilon: float = 0.1
+):
+    """
+    Implements 'Algorithm 2: Dynamic Beam Search' from the paper
+    
+    This function generates passwords based on user PII (auxiliary_info) 
+    while managing GPU memory and filtering low-quality 'junk' passwords.
+
+    ARGS):
+    -------------------------------
+    1. model (M): 
+       The trained LLM (PassLLM). We need it to predict the next character.
+       
+    2. tokenizer (V): 
+       Represents the 'Vocabulary'. Limited to 95 ASCII characters 
+       plus the EOS (End of Sequence) token. 
+       
+    3. auxiliary_info_ids (INFO): 
+       The encoded PII (Name, Birth Year, Sister Password). 
+       
+    4. max_depth (m):
+       How long can the password be? (e.g., 16 chars), 'maximum depth of generation'. 
+       
+    5. beam_width_schedule (K[i]):
+       The 'Dynamic Beam Width'. instead of a fixed number (like 1,000), 
+       this is a list: [50, 200, 1000, 1000...].
+       It tells us how many guesses to keep at each step 'i'. 
+       
+    6. batch_size (B):
+       The memory safety limit. Candidates are divided into 
+       smaller batches processed in parallel to prevent VRAM crashes. 
+       
+    7. epsilon (ε):
+       The 'EOS Threshold'. A sequence is forcibly ended 
+       only if the model's predicted Pr(EOS) > ε'. 
+    """
+
+    # --- STEP 1: THE KV CACHE OPTIMIZATION ---
+    # This is inference, not training. It saves massive amounts of RAM.
+    with torch.no_grad():
+        
+        # We feed the User's PII (auxiliary_info_ids) into the model.
+        outputs = model(
+            input_ids=auxiliary_info_ids, 
+            use_cache=True # We use use_cache=True to get the 'past_key_values' (The Memory).
+        )
+        
+        # This object contains the mathematical representation of "Name: John, Born: 1990".
+        # Shape: (n_layers, 2, batch_size=1, n_heads, seq_len, head_dim)
+        shared_kv_cache = outputs.past_key_values
+
+        # We ran it once. We have 1 copy. 
+        # Later, when we have 1,000 beams, they will all point to this single copy in memory.
+        
+        # The model has read the PII. Now it predicts the very first letter of the password.
+        # We only care about the last token's prediction (index -1).
+        next_token_logits = outputs.logits[:, -1, :]
+
+    # --- STEP 2: INITIALIZE CANDIDATES ---
+    # We start with a single empty candidate (the beginning of the password).
+    # We will limit the model to generating only 95 ASCII characters.
+    # We force the probability of all other characters (emojis, chinese, etc.) to -Infinity.
+
+    # Turn raw scores (logits) into probabilities (0.0 to 1.0)
+    next_token_probs = F.softmax(next_token_logits, dim=-1)
+
+    # For the first step (depth=0), we use K[0].
+    current_k = beam_width_schedule[0] if beam_width_schedule else 100
+
+    # Get the top-K tokens and their probabilities.
+    top_k_probs, top_k_ids = torch.topk(next_token_probs, k=current_k, dim=-1)
+        
+    # Each "Beam" is a dictionary tracking:
+    # - 'sequence': The password characters generated so far
+    # - 'score': The cumulative probability (log probability)
+    # - 'finished': Has it hit EOS?
+    beams = []
+    
+    for i in range(current_k):
+        beams.append({
+            'sequence': [top_k_ids[0, i].item()], # The first character ID
+            'score': torch.log(top_k_probs[0, i]).item(), # Log probability
+            'finished': False
+        })
+        
+    print(f"Initialized {len(beams)} beams based on PII.")
+
+    # --- STEP 3: THE MAIN SEARCH LOOP ---
+    ## This is where the code loops from depth=1 to max_depth (e.g., 16 characters),
+    ## generating one character at a time.
+
+    final_candidates = []
+
+    for depth in range(max_depth):
+        print(f"Depth {depth+1}/{max_depth} with {len(beams)} beams.")
+
+        # A. DYNAMIC BEAM WIDTH (Paper "K[i]")
+        # At depth 0, we might keep 50. At depth 5, we might keep 1000.
+        # If no schedule is provided, we default to keeping 100 candidates.
+        current_beam_width = beam_width_schedule[depth] if beam_width_schedule else 100
+
+        # B. PREPARE NEXT STEP CANDIDATES
+        # We take our list of 'beams' and only keep the top K best ones.
+        # Sort by score (highest probability first) and slice.
+        beams.sort(key=lambda x: x['score'], reverse=True)
+        beams = beams[:current_beam_width]     
+
+        new_beams = []       
+
+        # --- STEP 4: THE BATCHING MECHANISM (Solving VRAM Crashes) ---
+        # This is the "Safety Valve". If active_beams has 1,000 candidates, 
+        # and batch_size is 10, we process 100 loops of 10. 
+        # This prevents the GPU memory from spiking.
+
+        for i in range(0, len(active_beams), batch_size):
+            batch_candidates = active_beams[i : i + batch_size]
+
+            # We need the LAST character of each candidate to predict the NEXT one.
+            # Shape: (batch_size, 1)
+            batch_input_ids = torch.tensor(
+                [[b['sequence'][-1]] for b in batch_candidates], 
+                device=model.device
+            )
+
+            # Predicting the Next Characters for the entire batch
+            with torch.no_grad():
+                outputs = model(
+                    input_ids=batch_input_ids,
+                    past_key_values=shared_kv_cache, # Uses the SHARED bio memory!
+                    use_cache=True
+                )
+                
+            next_token_logits = outputs.logits[:, -1, :]
+            next_token_probs = F.softmax(next_token_logits, dim=-1)
