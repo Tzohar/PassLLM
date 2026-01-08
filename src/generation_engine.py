@@ -47,28 +47,28 @@ def dynamic_beam_search(
     """
 
     # --- STEP 1: THE KV CACHE OPTIMIZATION ---
-    # This is inference, not training. It saves massive amounts of RAM
+    # Tells PyTorch we are in inference mode (saves memory due to no gradients)
     with torch.no_grad():
         
-        # We feed the User's PII (auxiliary_info_ids) into the model
+        # Feed the auxiliary info (PII) into the model ONCE
         outputs = model(
             input_ids=auxiliary_info_ids, 
             use_cache=True # We use use_cache=True to get the 'past_key_values' (The Memory)
         )
         
-        # This object contains the mathematical representation of "Name: John, Born: 1990"
-        # Shape: (n_layers, 2, batch_size=1, n_heads, seq_len, head_dim)
-        shared_kv_cache = outputs.past_key_values
-
+        # This object contains the mathematical representation  of "Name: John, Born: 1990"
         # We ran it once. We have 1 copy
         # Later, when we have 1,000 beams, they will all point to this single copy in memory
+        shared_kv_cache = outputs.past_key_values
+
         
-        # The model has read the PII. Now it predicts the very first letter of the password
+        # The model has read the PII, now it predicts the very first letter of the password
         # We only care about the last token's prediction (index -1)
+        # But since we have only provided PII, the model's next token is the FIRST char of the password
         next_token_logits = outputs.logits[:, -1, :]
 
     # --- STEP 2: INITIALIZE CANDIDATES ---
-    # We start with a single empty candidate (the beginning of the password)
+    # We started with a single empty candidate (the beginning of the password)
     # We will limit the model to generating only 95 ASCII characters
     # We force the probability of all other characters (emojis, chinese, etc.) to -Infinity
 
@@ -87,6 +87,9 @@ def dynamic_beam_search(
     # - 'finished': Has it hit EOS?
     beams = []
     
+    # For starters, we create K beams based on the top-K first characters
+    # Each beam is basically a guess starting with one of these characters we found
+    # The score is log(probability) to make multiplication easier (sum of logs)
     for i in range(current_k):
         beams.append({
             'sequence': [top_k_ids[0, i].item()], # The first character ID
@@ -105,7 +108,7 @@ def dynamic_beam_search(
     for depth in range(max_depth):
         print(f"Depth {depth+1}/{max_depth} with {len(beams)} beams.")
 
-        # A. DYNAMIC BEAM WIDTH (Paper "K[i]")
+        # A. DYNAMIC BEAM WIDTH 
         # At depth 0, we might keep 50. At depth 5, we might keep 1000
         # If no schedule is provided, we default to keeping 100 candidates
         current_beam_width = beam_width_schedule[depth] if beam_width_schedule else 100
@@ -114,7 +117,7 @@ def dynamic_beam_search(
         # We take our list of 'beams' and only keep the top K best ones
         # Sort by score (highest probability first) and slice
         beams.sort(key=lambda x: x['score'], reverse=True)
-        beams = beams[:current_beam_width]     
+        active_beams = beams[:current_beam_width]     
 
         new_beams = []       
 
@@ -134,6 +137,8 @@ def dynamic_beam_search(
             )
 
             # Predicting the Next Characters for the entire batch
+            # The model produces logits for each candidate in the batch simultaneously
+            # Reminder: the PII is already in the KV cache, so we just append to it
             with torch.no_grad():
                 outputs = model(
                     input_ids=batch_input_ids,
@@ -141,13 +146,15 @@ def dynamic_beam_search(
                     use_cache=True
                 )
 
+            # Get the probabilities for the next token
             next_token_logits = outputs.logits[:, -1, :]
             next_token_probs = F.softmax(next_token_logits, dim=-1)
 
             # --- STEP 5: THE EPSILON THRESHOLD ---
 
-            # 1. Check EOS Probability for each candidate in this batch
+            # Check EOS Probability for each candidate in this batch
             # We assume tokenizer.eos_token_id is the ID for "End of Sequence"
+            # eos_probs is basically Pr(EOS) for each candidate, forming a vector of size (batch_size,)
             eos_id = tokenizer.eos_token_id
             eos_probs = next_token_probs[:, eos_id] # Shape: (batch_size,)
 
