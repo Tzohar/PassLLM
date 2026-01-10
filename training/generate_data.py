@@ -127,8 +127,9 @@ def format_paper_raw(system_prompt, user_input, target_output):
     
     Structure:
     [Instruction]
-    [User PII & Context]
+    [Auxiliary Information]
     Password: [Target Password]
+    ([Instruction] \n [Auxiliary Information] \n Password: [Target Password])
     """
     
     # The paper found that a direct instruction worked best
