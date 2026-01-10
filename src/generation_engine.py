@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from typing import List, Tuple, Dict
+from transformers.cache_utils import DynamicCache
 
 def dynamic_beam_search(
     model, 
@@ -128,22 +129,39 @@ def dynamic_beam_search(
 
         for i in range(0, len(active_beams), batch_size):
             batch_candidates = active_beams[i : i + batch_size]
+            current_batch_size = len(batch_candidates)
 
-            # We need the LAST character of each candidate to predict the NEXT one
-            # Shape: (batch_size, 1)
+            # We take the PII memory (shared_kv_cache) and virtually 
+            # copy it 'current_batch_size' times to match the input batch
+
+            # Create a new cache object for this batch
+            expanded_cache = DynamicCache()
+            
+            # Loop through every layer of the memory
+            for layer_idx in range(len(shared_kv_cache)):
+                # Get the original (Batch=1) keys and values
+                k, v = shared_kv_cache[layer_idx]
+                
+                # COMMAND: "Put it N times"
+                # .expand() creates virtual copies instantly
+                k_expanded = k.expand(current_batch_size, -1, -1, -1)
+                v_expanded = v.expand(current_batch_size, -1, -1, -1)
+                
+                # Add to our new cache object
+                expanded_cache.update(k_expanded, v_expanded, layer_idx)
+
+            # --- PREPARE INPUT ---
+            # We feed the LAST character of each candidate
             batch_input_ids = torch.tensor(
                 [[b['sequence'][-1]] for b in batch_candidates], 
                 device=model.device
             )
 
-            # Predicting the Next Characters for the entire batch
-            # The model produces logits for each candidate in the batch simultaneously
-            # Reminder: the PII is already in the KV cache, so we just append to it
-            current_batch = batch_input_ids.shape[0]
+            # --- RUN MODEL ---
             with torch.no_grad():
                 outputs = model(
                     input_ids=batch_input_ids,
-                    past_key_values=shared_kv_cache, # Uses the SHARED bio memory!
+                    past_key_values=expanded_cache, # Passing the expanded memory
                     use_cache=True
                 )
 
