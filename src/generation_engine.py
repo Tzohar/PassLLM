@@ -183,17 +183,19 @@ def dynamic_beam_search(
             # Condition B: The probability is explicitly > epsilon (The Paper's Fix)
             # We create a boolean mask for candidates that meet the threshold
             has_high_eos_prob = eos_probs > epsilon
-
             # Process the Top-K Predictions
             # We take the top beam_width characters to expand our search
             # Note: We expand *more* than we need so we can filter later
             vocab_probs, vocab_ids = torch.topk(next_token_probs, k=current_beam_width, dim=-1)
 
             for batch_idx, candidate in enumerate(batch_candidates):
-                
                 # --- CHECK FOR STOPPING (The "Junk Password" Fix) ---
+                # We subtract 1 from len() if the tokenizer adds a start token, 
+                # but usually just checking len() >= 8 is safe.
+                is_long_enough = len(candidate['sequence']) >= 8
+
                 # If this specific candidate passes the Epsilon test, we save it as a "Finished Password"
-                if has_high_eos_prob[batch_idx]:
+                if has_high_eos_prob[batch_idx] and is_long_enough:
                     # Create a finished entry
                     finished_candidate = candidate.copy()
                     finished_candidate['finished'] = True
