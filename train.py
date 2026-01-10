@@ -1,5 +1,3 @@
-import os
-from dotenv import load_dotenv
 import torch
 import torch.nn as nn
 import math
@@ -7,16 +5,14 @@ from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 from tqdm import tqdm
-from model import LoRALayer
-
-load_dotenv() # Load variables
+from src.model import LoRALayer
 
 # --- CONFIGURATION ---
-MODEL_ID = os.getenv("MODEL_ID")
-DATA_FILE = os.getenv("DATA_FILE")
-LORA_RANK = int(os.getenv("LORA_RANK", 16))
-LORA_ALPHA = int(os.getenv("LORA_ALPHA", 32))
-LEARNING_RATE = float(os.getenv("LEARNING_RATE", 1e-4))
+MODEL_ID = "Qwen/Qwen2.5-0.5B"
+DATA_FILE = "passllm_alpaca_data.jsonl"
+LORA_RANK = 16
+LORA_ALPHA = 32
+LEARNING_RATE = 1e-4
 
 # First, we load the base pre-trained model
 def build_model():
