@@ -18,7 +18,8 @@ class LoRALayer(nn.Module):
 
         # Get dimensions: d_in (input size) and d_out (output size)
         # d_out is the number of rows, d_in is the number of columns in the weight matrix
-        d_out, d_in = self.original_layer.weight.shape
+        d_in = original_layer.in_features
+        d_out = original_layer.out_features
 
         # To compress data (d_in -> r) and expand it back (r -> d_out)
         # Matrix A: Compresses (d_in x r)
@@ -54,9 +55,11 @@ class LoRALayer(nn.Module):
         # Path 2: The LoRA Path (A -> B)
         # Equation: y_2 = (x * A) * B
         # We apply dropout first, then multiply by A, then B
+        # And we cast input 'x' to match LoRA weights, Float16 -> Float32
         x_dropped = self.dropout(x)
-        low_rank_output = (x_dropped @ self.lora_a) @ self.lora_b
-        
+        low_rank_output = (x_dropped.to(self.lora_a.dtype) @ self.lora_a) @ self.lora_b   
+
         # Combine: y = y_1 + (y_2 * scaling)
         # This matches the "Element-wise addition" circle in Figure 2
-        return original_output + (low_rank_output * self.scaling)
+        # And we cast back to original output dtype to avoid issues, Float32 -> Float16
+        return original_output + (low_rank_output.to(original_output.dtype) * self.scaling)
