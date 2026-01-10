@@ -2,36 +2,15 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.model import LoRALayer
 from src.generation_engine import dynamic_beam_search
+from loader import build_model, inject_lora_layers 
 
-MODEL_ID = "Qwen/Qwen2.5-0.5B"
-LORA_RANK = 16
-LORA_ALPHA = 32
 WEIGHTS_PATH = "PassLLM_LoRA_Weights.pth"
 
 def main():
     print("Loading System...")
 
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID, 
-        device_map="auto",
-        load_in_4bit=True
-    )
-
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-    tokenizer.pad_token = tokenizer.eos_token
-
-    for name, module in model.named_modules():
-        if "q_proj" in name or "v_proj" in name:
-            parent_name = name.rsplit('.', 1)[0]
-            child_name = name.rsplit('.', 1)[1]
-            parent_module = model.get_submodule(parent_name)
-            lora_layer = LoRALayer(
-                original_layer=module,
-                rank=16,
-                alpha=32
-            )
-            lora_layer.to(module.weight.device)
-            setattr(parent_module, child_name, lora_layer)
+    model, tokenizer = build_model()
+    model = inject_lora_layers(model)
     
     model.load_state_dict(torch.load(WEIGHTS_PATH), strict=False)
     model.eval()
