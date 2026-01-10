@@ -69,6 +69,8 @@ def inject_lora_layers(model):
             setattr(parent_module, child_name, lora_layer)
 
             print(f"Replaced: {name} with LoRA Layer.")
+            
+    return model
 
 # Now that we have injected the new LoRA layers, 
 # we must tell PyTorch exactly what to update
