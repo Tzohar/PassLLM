@@ -8,7 +8,7 @@ from tqdm import tqdm
 from model import LoRALayer
 
 # --- CONFIGURATION ---
-MODEL_ID = "mistralai/Mistral-7B-v0.1"
+MODEL_ID = "Qwen/Qwen2.5-0.5B"
 DATA_FILE = "passllm_alpaca_data.jsonl"
 LORA_RANK = 16
 LORA_ALPHA = 32
@@ -79,6 +79,9 @@ def inject_lora_layers(model):
 def freeze_parameters(model):
     print("Freezing Base Model Parameters...")
 
+    frozen_count = 0
+    lora_count = 0
+    
     # We look at every single variable in the model (billions)
     for name, param in model.named_parameters():
         # If the parameter belongs to a LoRA layer, we want to train it
@@ -129,7 +132,14 @@ def format_and_mask(sample, tokenizer):
 
     # In PyTorch, setting a label to -100 means "Ignore this"
     # We set all tokens BEFORE the password to -100 so they don't contribute to the loss
-    labels[:prompt_len] = -100
+    if prompt_len < len(labels):
+        labels[:prompt_len] = [-100] * prompt_len
+
+    return {
+        "input_ids": input_ids,
+        "attention_mask": encodings["attention_mask"],
+        "labels": labels
+    }
 
 def prepare_data(tokenizer):
     print("Processing Data with Masking...")
@@ -138,7 +148,10 @@ def prepare_data(tokenizer):
     dataset = load_dataset("json", data_files=DATA_FILE, split="train")
 
     # We run the 'format_and_mask' function on every sample in the dataset
-    tokenized_dataset = dataset.map(lambda x: format_and_mask(x, tokenizer))
+    tokenized_dataset = dataset.map(
+        lambda x: format_and_mask(x, tokenizer),
+        remove_columns=dataset.column_names  
+    )
 
     # The data initially holds standard Python lists
     # We convert it into PyTorch Tensors 
