@@ -32,6 +32,8 @@ def build_model():
     # Technical Fix: Mistral/Llama don't have a "padding" token by default
     # We set it to EOS (End of Sequence) so training doesn't crash
     tokenizer.pad_token = tokenizer.eos_token
+    
+    return model, tokenizer
 
 # Now that we have the base model, we inject LoRA layers into it
 # LoRA layers are tiny modules that allow us to fine-tune massive models efficiently
