@@ -131,13 +131,14 @@ def dynamic_beam_search(
             batch_candidates = active_beams[i : i + batch_size]
             current_batch_size = len(batch_candidates)
 
+            # --- YOUR FIX: "Put the cache N times" ---
             # We take the PII memory (shared_kv_cache) and virtually 
-            # copy it 'current_batch_size' times to match the input batch
-
-            # Create a new cache object for this batch
+            # copy it 'current_batch_size' times to match the input.
+            
+            # 1. Create a new cache object for this batch
             expanded_cache = DynamicCache()
             
-            # Loop through every layer of the memory
+            # 2. Loop through every layer of the memory
             for layer_idx in range(len(shared_kv_cache)):
                 # Get the original (Batch=1) keys and values
                 k, v = shared_kv_cache[layer_idx]
@@ -219,21 +220,21 @@ def dynamic_beam_search(
                     }
                     new_beams.append(new_beam)
 
-            # --- STEP 6: MERGE & PRUNE (End of Batch Loop) ---
-            # We have processed all batches. 'new_beams' now has thousands of candidates.
-            # We must prune it down to K[i+1] for the next depth.
-            
-            # Sort by score (highest probability first)
-            new_beams.sort(key=lambda x: x['score'], reverse=True)
-            
-            # Keep only the top K for the next round
-            # Algorithm 2, Line 9: "SelectTopK"
-            next_width = beam_width_schedule[depth+1] if (beam_width_schedule and depth+1 < len(beam_width_schedule)) else 100
-            beams = new_beams[:next_width]
-            
-            print(f"Depth {depth}: Kept {len(beams)} candidates. Found {len(final_candidates)} finished passwords.")
+        # --- STEP 6: MERGE & PRUNE ---
+        # We have processed all batches. 'new_beams' now has thousands of candidates.
+        # We must prune it down to K[i+1] for the next depth.
+        
+        # Sort by score (highest probability first)
+        new_beams.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Keep only the top K for the next round
+        # Algorithm 2, Line 9: "SelectTopK"
+        next_width = beam_width_schedule[depth+1] if (beam_width_schedule and depth+1 < len(beam_width_schedule)) else 100
+        beams = new_beams[:next_width]
+        
+        print(f"Depth {depth}: Kept {len(beams)} candidates. Found {len(final_candidates)} finished passwords.")
 
-        # --- STEP 7: FINAL RETURN ---
-        # Return sorted results
-        final_candidates.sort(key=lambda x: x['score'], reverse=True)
-        return final_candidates
+    # --- STEP 7: FINAL RETURN ---
+    # Return sorted results
+    final_candidates.sort(key=lambda x: x['score'], reverse=True)
+    return final_candidates
