@@ -9,10 +9,7 @@ from src.model import LoRALayer
 from src.loader import build_model, inject_lora_layers 
 
 # --- CONFIGURATION ---
-MODEL_ID = "Qwen/Qwen2.5-0.5B"
 DATA_FILE = "passllm_alpaca_data.jsonl"
-LORA_RANK = 16
-LORA_ALPHA = 32
 LEARNING_RATE = 1e-4
 
 # Now that we have injected the new LoRA layers into the model in loader.py, 
