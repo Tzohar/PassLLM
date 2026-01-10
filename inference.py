@@ -6,7 +6,7 @@ from src.generation_engine import dynamic_beam_search
 MODEL_ID = "Qwen/Qwen2.5-0.5B"
 LORA_RANK = 16
 LORA_ALPHA = 32
-WEIGHTS_PATH = "passllm_lora_weights.pth"
+WEIGHTS_PATH = "PassLLM_LoRA_Weights.pth"
 
 def main():
     print("Loading System...")
