@@ -123,8 +123,8 @@ def format_and_mask(sample, tokenizer):
     encodings = tokenizer(full_text, truncation=True, padding='max_length', max_length=512)
 
     # Initially, the labels are identical to the input
-    input_ids = torch.tensor(encodings['input_ids'])
-    labels = input_ids.clone()
+    input_ids = encodings['input_ids']
+    labels = list(input_ids)
 
     # We re-tokenize JUST the prompt (Instruction + Input) to find its length
     prompt_text = f"{sample['instruction']}\n{sample['input']}\n"
