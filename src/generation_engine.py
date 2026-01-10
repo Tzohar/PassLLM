@@ -139,6 +139,7 @@ def dynamic_beam_search(
             # Predicting the Next Characters for the entire batch
             # The model produces logits for each candidate in the batch simultaneously
             # Reminder: the PII is already in the KV cache, so we just append to it
+            current_batch = batch_input_ids.shape[0]
             with torch.no_grad():
                 outputs = model(
                     input_ids=batch_input_ids,
