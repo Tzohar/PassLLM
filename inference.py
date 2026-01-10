@@ -1,10 +1,16 @@
+import os
 import torch
+from dotenv import load_dotenv
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from model import LoRALayer     
-from generation_engine import dynamic_beam_search
+from src.model import LoRALayer
+from src.generation_engine import dynamic_beam_search
 
-MODEL_ID = "Qwen/Qwen2.5-0.5B"
-WEIGHTS_PATH = "PassLLM_LoRA_Weights.pth"
+load_dotenv()
+
+MODEL_ID = os.getenv("MODEL_ID")
+WEIGHTS_PATH = os.getenv("WEIGHTS_PATH")
+LORA_RANK = int(os.getenv("LORA_RANK", 16))   # defaults to 16 if missing
+LORA_ALPHA = int(os.getenv("LORA_ALPHA", 32)) # defaults to 32 if missing
 
 def main():
     print("Loading System...")

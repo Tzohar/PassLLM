@@ -1,0 +1,9 @@
+# .env
+MODEL_ID="Qwen/Qwen2.5-0.5B"
+DATA_FILE="data/passllm_alpaca_data.jsonl"
+WEIGHTS_PATH="models/PassLLM_LoRA_Weights.pth"
+
+# Training Hyperparameters
+LORA_RANK=16
+LORA_ALPHA=32
+LEARNING_RATE=1e-4
