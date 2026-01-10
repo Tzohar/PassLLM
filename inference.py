@@ -36,17 +36,23 @@ def main():
     model.load_state_dict(torch.load(WEIGHTS_PATH), strict=False)
     model.eval()
 
+    # --- TARGETED PASSWORD GUESSING INFERENCE (ALPACA) ---
     print("\n--- TARGETING USER ---")
-    instruction = "Retrieve the password for the user 'admin@example.com'."
-    user_info = "Name: Admin User\nBirth Year: 1990"
-    prompt = f"{instruction}\n{user_info}\nPassword: "
-    print(f"Context:\n{prompt.strip()}")
+    # 1. EXACT System Prompt from data generator
+    instruction = "As a targeted password guessing model, your task is to utilize the provided information to guess the corresponding password."    user_info = "Name: Admin User\nBirth Year: 1990"
+    # 2. EXACT Data Format from 'user_input_str'
+    # Format: "Name: {First} {Last}, Born: {Year}, User: {Username}, SisterPW: {SisterPW}"
+    # Note: MUST provide a 'SisterPW' (or a placeholder) because the model was trained to expect it
+    user_details = "Name: Matthew Miller, Born: 1950, User: matthew, SisterPW: 123456"    prompt = f"{instruction}\n{user_info}\nPassword: "
+    # 3. Combine them EXACTLY as train.py did
+    # Logic: f"{sample['instruction']}\n{sample['input']}\nPassword: "
+    prompt = f"{instruction}\n{user_details}\nPassword: "
 
     input_ids = tokenizer(prompt, return_tensors="pt")["input_ids"].to(model.device)
 
     candidates = dynamic_beam_search(
         model=model, tokenizer=tokenizer, auxiliary_info_ids=input_ids,
-        max_depth=10, beam_width_schedule=[50, 50, 50, 50, 20, 20, 10, 10, 10, 10]
+        max_depth=16, beam_width_schedule=[150, 150, 100, 100, 100, 50, 50, 50, 20, 20, 20, 10, 10, 10, 10]
     )
 
     print(f"\n--- GENERATED {len(candidates)} CANDIDATES ---")
