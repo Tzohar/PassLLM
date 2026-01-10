@@ -65,6 +65,9 @@ def inject_lora_layers(model):
                 alpha=LORA_ALPHA
             )
 
+            # We move the new LoRA layer to the same device as the original layer   
+            lora_layer.to(module.weight.device)
+
             # This line does the actual replacement in the model
             setattr(parent_module, child_name, lora_layer)
 
