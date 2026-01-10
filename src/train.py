@@ -9,7 +9,7 @@ from model import LoRALayer
 
 # --- CONFIGURATION ---
 MODEL_ID = "mistralai/Mistral-7B-v0.1"
-DATA_FILE = "passllm_aplaca_data.jsonl"
+DATA_FILE = "passllm_alpaca_data.jsonl"
 LORA_RANK = 16
 LORA_ALPHA = 32
 LEARNING_RATE = 1e-4
