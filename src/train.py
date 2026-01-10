@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from transformers import AutoModelForCasualLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 from torch.utils.data import DataLoader
 from model import LoRALayer 
@@ -20,7 +20,7 @@ def build_model():
 
     # We load the model with "load_in_4bit=True" to save memory
     # It compresses the 14GB model to around 4GB so it can fit in limited GPU memory
-    model = AutoModelForCasualLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID,
         device_map="auto",
         load_in_4bit=True
@@ -110,7 +110,7 @@ def print_trainable_parameters(model):
 def format_and_mask(sample, tokenizer):
 
     # We combine the instruction, the user info and the real password together
-    full_text = f"{sample['instruction']}\n{sample['input']}\nPassword: {sample['output']}
+    full_text = f"{sample['instruction']}\n{sample['input']}\nPassword: {sample['output']}"
     
     # Convert the full text into token IDs
     encodings = tokenizer(full_text, truncation=True, padding='max_length', max_length=512)
