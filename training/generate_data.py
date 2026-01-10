@@ -103,7 +103,7 @@ def generate_synthetic_data():
             f"SisterPW: {sister_password}"
         )
         
-        # 1. Define the System Prompt (Section 4.2)
+        # 1. Define the System Prompt 
         paper_system_prompt = (
             "As a targeted password guessing model, your task is to utilize the "
             "provided information to guess the corresponding password."
