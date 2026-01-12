@@ -136,11 +136,14 @@ def format_paper_raw(system_prompt, user_input, target_output):
     # We add newlines (\n) to separate the sections clearly
     # The "Password: " string acts as the trigger for the model to start guessing
     
-    text = f"{system_prompt}\n{user_input}\nPassword: {target_output}"
+    # text = f"{system_prompt}\n{user_input}\nPassword: {target_output}"
     
     # We return a dictionary because HuggingFace datasets expect this format
-    return {"text": text}
-
+    return {
+        "instruction": system_prompt,
+        "input": user_input,
+        "output": target_output
+    }
 if __name__ == "__main__":
     generate_synthetic_data()
 
