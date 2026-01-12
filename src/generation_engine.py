@@ -2,6 +2,25 @@ import torch
 import torch.nn.functional as F
 from typing import List, Tuple, Dict
 from transformers.cache_utils import DynamicCache
+import string
+
+def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
+    # Create a mask of -Infinity with the TRUE size from the model's logits
+    mask = torch.full((true_vocab_size,), float('-inf'), device=device)
+    
+    # Define allowed characters
+    allowed_chars = string.ascii_letters + string.digits  # "abc...XYZ012...9"
+    
+    # Unblock allowed characters
+    for char in allowed_chars:
+        token_ids = tokenizer.encode(char, add_special_tokens=False)
+        if len(token_ids) == 1:
+            mask[token_ids[0]] = 0.0
+            
+    # Unblock EOS
+    mask[tokenizer.eos_token_id] = 0.0
+    
+    return mask
 
 def dynamic_beam_search(
     model, 
@@ -10,7 +29,7 @@ def dynamic_beam_search(
     max_depth: int = 16, 
     beam_width_schedule: List[int] = None, 
     batch_size: int = 10, 
-    epsilon: float = 0.1
+    epsilon: float = 0.001
 ):
     """
     Implements 'Algorithm 2: Dynamic Beam Search' from the paper
@@ -72,6 +91,11 @@ def dynamic_beam_search(
     # We started with a single empty candidate (the beginning of the password)
     # We will limit the model to generating only 95 ASCII characters
     # We force the probability of all other characters (emojis, chinese, etc.) to -Infinity
+
+    # We generate the ASCII mask and apply it
+    model_vocab_size = next_token_logits.shape[-1]
+    alphanumeric_mask = get_alphanumeric_mask(tokenizer, model_vocab_size, model.device)
+    next_token_logits = next_token_logits + alphanumeric_mask
 
     # Turn raw scores (logits) into probabilities (0.0 to 1.0)
     next_token_probs = F.softmax(next_token_logits, dim=-1)
@@ -135,21 +159,54 @@ def dynamic_beam_search(
             # We take the PII memory (shared_kv_cache) and virtually 
             # copy it 'current_batch_size' times to match the input.
             
+
             # 1. Create a new cache object for this batch
-            expanded_cache = DynamicCache()
-            
-            # 2. Loop through every layer of the memory
-            for layer_idx in range(len(shared_kv_cache)):
-                # Get the original (Batch=1) keys and values
-                k, v = shared_kv_cache[layer_idx]
+            # --- FIX: PREPARE CACHE BASED ON DEPTH ---
+            if depth == 0:
+                # CASE A: DEPTH 0 (First Generation)
+                # We only have PII. Every candidate shares the exact same PII memory.
+                # We simply expand the 'shared_kv_cache' N times (N = current_batch_size).
                 
-                # COMMAND: "Put it N times"
-                # .expand() creates virtual copies instantly
-                k_expanded = k.expand(current_batch_size, -1, -1, -1)
-                v_expanded = v.expand(current_batch_size, -1, -1, -1)
+                expanded_cache = DynamicCache()
+                for layer_idx in range(len(shared_kv_cache)):
+                    # shared_kv_cache[layer_idx] is a tuple (Key, Value)
+                    k, v = shared_kv_cache[layer_idx] 
+                    
+                    # Expand from Batch=1 to Batch=Current_Batch_Size
+                    k_expanded = k.expand(current_batch_size, -1, -1, -1)
+                    v_expanded = v.expand(current_batch_size, -1, -1, -1)
+                    
+                    expanded_cache.update(k_expanded, v_expanded, layer_idx)
+
+            else:
+                # CASE B: DEPTH > 0 (Subsequent Generations)
+                # The candidates have diverged. Candidate A has memory "Joh", Candidate B has "199".
+                # We must GATHER their individual caches and STACK them into a single batch.
                 
-                # Add to our new cache object
-                expanded_cache.update(k_expanded, v_expanded, layer_idx)
+                expanded_cache = DynamicCache()
+                
+                # We assume all candidates have the same number of layers
+                # We look at the first candidate to know how many layers to loop over
+                num_layers = len(batch_candidates[0]['cache']) 
+                
+                for layer_idx in range(num_layers):
+                    # 1. Collect the Keys (K) for this layer from all candidates in this batch
+                    # candidate['cache'][layer_idx][0] is the Key tensor for that specific candidate
+                    # We use torch.cat to stack them along dimension 0 (Batch Dimension)
+                    k_stacked = torch.cat(
+                        [b['cache'][layer_idx][0] for b in batch_candidates], 
+                        dim=0
+                    )
+                    
+                    # 2. Collect the Values (V) similarly
+                    v_stacked = torch.cat(
+                        [b['cache'][layer_idx][1] for b in batch_candidates], 
+                        dim=0
+                    )
+                    
+                    # 3. Add this combined layer to our batch cache
+                    expanded_cache.update(k_stacked, v_stacked, layer_idx)
+
 
             # --- PREPARE INPUT ---
             # We feed the LAST character of each candidate
@@ -166,8 +223,9 @@ def dynamic_beam_search(
                     use_cache=True
                 )
 
-            # Get the probabilities for the next token
+            # Get the probabilities for the next token, we apply our mask again
             next_token_logits = outputs.logits[:, -1, :]
+            next_token_logits = next_token_logits + alphanumeric_mask
             next_token_probs = F.softmax(next_token_logits, dim=-1)
 
             # --- STEP 5: THE EPSILON THRESHOLD ---
@@ -188,6 +246,8 @@ def dynamic_beam_search(
             # Note: We expand *more* than we need so we can filter later
             vocab_probs, vocab_ids = torch.topk(next_token_probs, k=current_beam_width, dim=-1)
 
+            new_kv_cache = outputs.past_key_values
+
             for batch_idx, candidate in enumerate(batch_candidates):
                 # --- CHECK FOR STOPPING (The "Junk Password" Fix) ---
                 # We subtract 1 from len() if the tokenizer adds a start token, 
@@ -202,6 +262,24 @@ def dynamic_beam_search(
                     # Update score: Add log(P(EOS))
                     finished_candidate['score'] += torch.log(eos_probs[batch_idx]).item()
                     final_candidates.append(finished_candidate)
+
+
+                # --- EXTRACT CACHE FOR THIS SPECIFIC CANDIDATE ---
+                # We create a lightweight tuple structure for the next iteration to read
+                # We assume the cache has L layers. We slice the batch_idx for each layer.
+                candidate_next_cache = []
+                for layer_idx in range(len(new_kv_cache)):
+                    # Get Key and Value for this layer
+                    k_layer, v_layer = new_kv_cache[layer_idx]
+                    
+                    # Slice out ONLY this candidate's row (keep dim 0 as size 1)
+                    # k_layer shape is (Batch, Heads, Seq, Dim). We want (1, Heads, Seq, Dim)
+                    k_slice = k_layer[batch_idx : batch_idx+1]
+                    v_slice = v_layer[batch_idx : batch_idx+1]
+                    
+                    candidate_next_cache.append((k_slice, v_slice))
+
+
 
                 # --- EXPANDING (Creating New Candidates) ---
                 # Even if we stopped, we ALSO continue expanding (in case the password is longer)
@@ -218,7 +296,8 @@ def dynamic_beam_search(
                     new_beam = {
                         'sequence': candidate['sequence'] + [next_char_id],
                         'score': candidate['score'] + torch.log(torch.tensor(next_char_prob)).item(),
-                        'finished': False
+                        'finished': False,
+                        'cache': candidate_next_cache 
                     }
                     new_beams.append(new_beam)
 
