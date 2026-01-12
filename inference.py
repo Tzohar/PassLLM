@@ -18,11 +18,11 @@ def main():
     # --- TARGETED PASSWORD GUESSING INFERENCE (ALPACA) ---
     print("\n--- TARGETING USER ---")
     # 1. EXACT System Prompt from data generator
-    instruction = "As a targeted password guessing model, your task is to utilize the provided information to guess the corresponding password."    user_info = "Name: Admin User\nBirth Year: 1990"
+    instruction = "As a targeted password guessing model, your task is to utilize the provided information to guess the corresponding password."  
     # 2. EXACT Data Format from 'user_input_str'
     # Format: "Name: {First} {Last}, Born: {Year}, User: {Username}, SisterPW: {SisterPW}"
     # Note: MUST provide a 'SisterPW' (or a placeholder) because the model was trained to expect it
-    user_details = "Name: Matthew Miller, Born: 1950, User: matthew, SisterPW: 123456"    prompt = f"{instruction}\n{user_info}\nPassword: "
+    user_details = "Name: Matthew Miller, Born: 1950, User: matthew, SisterPW: 123456"    
     # 3. Combine them EXACTLY as train.py did
     # Logic: f"{sample['instruction']}\n{sample['input']}\nPassword: "
     prompt = f"{instruction}\n{user_details}\nPassword: "
