@@ -2,7 +2,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.model import LoRALayer
 from src.generation_engine import dynamic_beam_search
-from loader import build_model, inject_lora_layers 
+from src.loader import build_model, inject_lora_layers 
 
 WEIGHTS_PATH = "PassLLM_LoRA_Weights.pth"
 
