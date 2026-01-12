@@ -9,7 +9,7 @@ from src.model import LoRALayer
 from src.loader import build_model, inject_lora_layers 
 
 # --- CONFIGURATION ---
-DATA_FILE = "passllm_alpaca_data.jsonl"
+DATA_FILE = "passllm_raw_data.jsonl"
 LEARNING_RATE = 1e-4
 
 # Now that we have injected the new LoRA layers into the model in loader.py, 
