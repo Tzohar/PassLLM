@@ -5,7 +5,7 @@ from src.model import LoRALayer  # We import the LoRA class logic
 # --- CONFIGURATION ---
 # We centralize the config here so both Train/Inference always match
 # OLD: MODEL_ID = "Qwen/Qwen2.5-0.5B"
-MODEL_ID = "mistralai/Mistral-7B-v0.1"
+MODEL_ID = "Qwen/Qwen2.5-0.5B"
 LORA_RANK = 16
 LORA_ALPHA = 32
 
