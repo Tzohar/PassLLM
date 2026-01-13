@@ -3,6 +3,8 @@ import torch
 import sys
 from src.loader import build_model, inject_lora_layers 
 from inference import predict_password # Import logic
+from src.config import Config
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="PassLLM Command Line Tool")
@@ -43,8 +45,12 @@ def main():
         "sister": args.sister
     }
 
-    # Define schedule based on flags
-    schedule = [10, 20, 50] + [50]*13 if args.fast else None # Pass None to use default
+    if args.fast:
+        schedule = Config.SCHEDULE_FAST
+        print("[+] Mode: FAST (Lower accuracy, higher speed)")
+    else:
+        schedule = Config.SCHEDULE_STANDARD
+        print("[+] Mode: STANDARD (High accuracy)")
 
     print(f"\n[+] Target Locked: {args.name}")
     print("[+] Cracking...")
@@ -56,7 +62,7 @@ def main():
     print(f"{'CONFIDENCE':<12} | {'PASSWORD'}")
     print("-" * 30)
 
-    for cand in candidates[:150]: # Show top 150
+    for cand in candidates[:250]: # Show top 150
         pwd = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
         # Prefer normalized percentage if generation attached it
         if 'probability' in cand:

@@ -1,47 +1,62 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from src.model import LoRALayer  # We import the LoRA class logic
-
-# --- CONFIGURATION ---
-# We centralize the config here so both Train/Inference always match
-# OLD: MODEL_ID = "Qwen/Qwen2.5-0.5B"
-MODEL_ID = "Qwen/Qwen2.5-0.5B"
-LORA_RANK = 16
-LORA_ALPHA = 32
+from src.config import Config
 
 # First, we load the base pre-trained model
 def build_model():
-    print("Loading Base Model...")
+    print(f"Loading Base Model: {Config.BASE_MODEL_ID}...")
+
+    # Configure Quantization based on Config
+    # If Config.USE_4BIT is True, we use the modern BitsAndBytes config object
+    if Config.USE_4BIT:
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=Config.TORCH_DTYPE,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+        )
+    else:
+        quantization_config = None
 
     # We load the model with "load_in_4bit=True" to save memory
     # It compresses the 14GB model to around 4GB so it can fit in limited GPU memory
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID,
+        Config.BASE_MODEL_ID,
         device_map="auto",
-        load_in_4bit=True
+        quantization_config=quantization_config,
     )
 
     # This loads the dictionary that turns "password" into numbers
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+    tokenizer = AutoTokenizer.from_pretrained(Config.BASE_MODEL_ID)
 
     # Technical Fix: Mistral/Llama don't have a "padding" token by default
     # We set it to EOS (End of Sequence) so training doesn't crash
-    tokenizer.pad_token = tokenizer.eos_token
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
     
     return model, tokenizer
 
 # Now that we have the base model, we inject LoRA layers into it
 # LoRA layers are tiny modules that allow us to fine-tune massive models efficiently
+
 def inject_lora_layers(model):
-    print("Injecting LoRA Layers...")
+    count = 0
+    print(f"Injecting LoRA Layers (Rank={Config.LORA_R}, Alpha={Config.LORA_ALPHA})...")
+
+    # Get the list of modules we want to target from Config
+    # e.g. ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    target_modules = set(Config.LORA_TARGET_MODULES)
 
     # We shall go through each layer in the model
     # Neural networks are like trees - this function walks through every branch
     for name, module in model.named_modules():
 
-        # Attention is calculated as Attention(Q, K, V)
-        # We only want to modify the Query and Value projection layers in the attention mechanism
-        if "q_proj" in name or "v_proj" in name:
+        # Check if the module name ends with one of our targets (e.g. "...self_attn.q_proj")
+        # name.split('.')[-1] gets the last part: "q_proj"
+        module_suffix = name.split('.')[-1]
+
+        if module_suffix in target_modules:
 
             # Again, neural networks are like trees
             # A layer is named according to its position in the tree, in the format:
@@ -55,9 +70,10 @@ def inject_lora_layers(model):
             # We replace the original layer with a LoRA-wrapped layer
             # We use rank=16 and alpha=32 as per the LoRA paper's recommendation
             lora_layer = LoRALayer(
-                original_layer=module, # module = parent_module.__getattr__(child_name)
-                rank=LORA_RANK,
-                alpha=LORA_ALPHA
+                original_layer=module, 
+                rank=Config.LORA_R,
+                alpha=Config.LORA_ALPHA,
+                dropout=Config.LORA_DROPOUT
             )
 
             # We move the new LoRA layer to the same device as the original layer   
@@ -65,7 +81,8 @@ def inject_lora_layers(model):
 
             # This line does the actual replacement in the model
             setattr(parent_module, child_name, lora_layer)
+            count += 1
 
-            print(f"Replaced: {name} with LoRA Layer.")
+    print(f"Success! Injected LoRA into {count} layers matching: {target_modules}")       
             
     return model
