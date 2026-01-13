@@ -56,7 +56,7 @@ def main():
     print(f"{'CONFIDENCE':<12} | {'PASSWORD'}")
     print("-" * 30)
 
-    for cand in candidates[:15]: # Show top 15
+    for cand in candidates[:150]: # Show top 150
         pwd = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
         # Prefer normalized percentage if generation attached it
         if 'probability' in cand:
