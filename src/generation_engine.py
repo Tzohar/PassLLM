@@ -9,15 +9,20 @@ def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
     mask = torch.full((true_vocab_size,), float('-inf'), device=device)
     
     # Define allowed characters
-    allowed_chars = string.ascii_letters + string.digits  # "abc...XYZ012...9"
+    printable_chars = [chr(i) for i in range(32, 127)]
     
     # Unblock allowed characters
-    for char in allowed_chars:
+    for char in printable_chars:
+        # We encode the character.
+        # add_special_tokens=False is CRITICAL to avoid start-of-sequence tokens
         token_ids = tokenizer.encode(char, add_special_tokens=False)
+        
+        # STRICT CONSTRAINT: Only allow if it maps to exactly ONE token
+        # This prevents the model from using weird merged tokens
         if len(token_ids) == 1:
             mask[token_ids[0]] = 0.0
             
-    # Unblock EOS
+    # 4. Explicitly Unblock EOS
     mask[tokenizer.eos_token_id] = 0.0
     
     return mask
