@@ -1,5 +1,6 @@
 import torch
 from src.generation_engine import dynamic_beam_search
+from src.config import Config 
 
 def predict_password(model, tokenizer, target_profile, max_depth=16, beam_schedule=None):
     """
@@ -11,16 +12,16 @@ def predict_password(model, tokenizer, target_profile, max_depth=16, beam_schedu
     Returns:
         List of candidate dictionaries
     """
-    
-    instruction = "As a targeted password guessing model, your task is to utilize the provided information to guess the corresponding password."
-    user_details = f"Name: {target_profile['name']}, Born: {target_profile['born']}, User: {target_profile['user']}, SisterPW: {target_profile['sister']}"
-    prompt = f"{instruction}\n{user_details}\nPassword: "
 
-    input_ids = tokenizer(prompt, return_tensors="pt")["input_ids"].to(model.device)
-
-    # 3. Default Schedule
+    if max_depth is None:
+        max_depth = Config.MAX_PASSWORD_LENGTH
+        
     if beam_schedule is None:
-        beam_schedule = [10, 50, 100, 100, 100, 200, 500, 500, 500, 500, 1000, 1000, 1000, 1000, 1000, 1000]
+        beam_schedule = Config.SCHEDULE_STANDARD
+    
+    prompt_text = Config.get_formatted_input(target_profile)
+
+    input_ids = tokenizer(prompt_text, return_tensors="pt")["input_ids"].to(model.device)
 
     candidates = dynamic_beam_search(
         model=model, 

@@ -4,14 +4,16 @@ import pandas as pd
 from faker import Faker
 from datetime import datetime, timedelta
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.config import Config 
 
 ## Initialize Faker for generating fake data (names, addresses, etc.)
 fake = Faker();
 
 # --- CONFIGURATION ---
 NUM_SAMPLES = 5000  # Size of our  "Synthetic Leak"
-CODE_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_FILE = os.path.join(CODE_DIR, "passllm_raw_data.jsonl")
+OUTPUT_FILE = Config.RAW_DATA_FILE # Output path for the generated data
 
 # --- SECTION 2.3: REUSE PATTERNS (Simulating how people change passwords) ---
 # Common patterns for password reuse - capitalizations and minor substitutions & additions
@@ -91,24 +93,22 @@ def generate_synthetic_data():
         # We concatenate all info into a structured string.
         
         # Format: "Name: [N], Born: [Y], User: [U], OldPW: [PW] ->"
-        user_input_str = (
-            f"Name: {profile['first_name']} {profile['last_name']}, "
-            f"Born: {profile['birth_year']}, "
-            f"User: {profile['username']}, "
-            f"SisterPW: {sister_password}"
-        )
+        pii_dict = {
+            "Name": f"{profile['first_name']} {profile['last_name']}",
+            "Born": profile['birth_year'],
+            "User": profile['username'],
+            "SisterPW": sister_password
+        }
         
-        # 1. Define the System Prompt 
-        paper_system_prompt = (
-            "As a targeted password guessing model, your task is to utilize the "
-            "provided information to guess the corresponding password."
-        )
-        entry = format_paper_raw(paper_system_prompt, user_input_str, target_password)
+        entry = {
+            "pii": pii_dict,         
+            "output": target_password
+        }
 
-        # 5. Save the row
+        # Save the row
         data.append(entry)
 
-        if i % 10000 == 0:
+        if i % 1000 == 0:
             print(f"Progress: {i}/{NUM_SAMPLES}")
     
     # Save to JSONL
@@ -118,34 +118,7 @@ def generate_synthetic_data():
     print("\nSample Data Preview:")
     print(df.head(3))
 
-# --- HELPER FUNCTIONS FOR FORMATTING ---
 
-def format_paper_raw(system_prompt, user_input, target_output):
-    """
-    The exact format used in the PassLLM Paper
-    
-    Target Model: Mistral-7B-v0.1 (Base)
-    Strategy: Raw Text Concatenation
-    
-    Structure:
-    [Instruction]
-    [Auxiliary Information]
-    Password: [Target Password]
-    ([Instruction] \n [Auxiliary Information] \n Password: [Target Password])
-    """
-    
-    # The paper found that a direct instruction worked best
-    # We add newlines (\n) to separate the sections clearly
-    # The "Password: " string acts as the trigger for the model to start guessing
-    
-    # text = f"{system_prompt}\n{user_input}\nPassword: {target_output}"
-    
-    # We return a dictionary because HuggingFace datasets expect this format
-    return {
-        "instruction": system_prompt,
-        "input": user_input,
-        "output": target_output
-    }
 if __name__ == "__main__":
     generate_synthetic_data()
 

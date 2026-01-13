@@ -1,41 +1,82 @@
 import torch
 import torch.nn.functional as F
+import string
 from typing import List, Tuple, Dict
 from transformers.cache_utils import DynamicCache
-import string
+from src.config import Config
+
+# Key: (vocab_size, device_str) -> Value: mask_tensor
+_MASK_CACHE = {}
 
 def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
+    # Check cache first
+    cache_key = (true_vocab_size, str(device))
+    if cache_key in _MASK_CACHE:
+        return _MASK_CACHE[cache_key]
+
     # Create a mask of -Infinity with the TRUE size from the model's logits
     mask = torch.full((true_vocab_size,), float('-inf'), device=device)
     
-    # Define allowed characters (restrict to alphanumeric by default to avoid spaces/punctuation)
-    # If you want additional symbols, add them explicitly (e.g., "!@#$%&*()-_+=?")
-    printable_chars = list(string.ascii_letters + string.digits)
-    
+    # Define allowed characters by config.py rules
+    allowed_chars = set()
+    # Note: We check if attributes exist to be safe, defaulting to "ALL_PRINTABLE" behavior
+    if getattr(Config, "VOCAB_CUSTOM_ALLOW_UPPER", True):
+        allowed_chars.update(string.ascii_uppercase)
+    if getattr(Config, "VOCAB_CUSTOM_ALLOW_LOWER", True):
+        allowed_chars.update(string.ascii_lowercase)
+    if getattr(Config, "VOCAB_CUSTOM_ALLOW_DIGITS", True):
+        allowed_chars.update(string.digits)
+    if getattr(Config, "VOCAB_CUSTOM_ALLOW_SYMBOLS", True):
+        allowed_chars.update(string.punctuation)
+
+    # Apply whitelist (force add)
+    if getattr(Config, "VOCAB_WHITELIST", ""):
+        allowed_chars.update(Config.VOCAB_WHITELIST)
+
+    # Apply blacklist (force remove)
+    # Default blacklist: space, tab, newline
+    blacklist = getattr(Config, "VOCAB_BLACKLIST", " \t\r\n")
+    if blacklist:
+        for char in blacklist:
+            allowed_chars.discard(char)
+
+    # Convert to sorted list for deterministic behavior
+    printable_chars = sorted(list(allowed_chars))
+    allowed_count = 0
+
     # Unblock allowed characters
     for char in printable_chars:
-        # We encode the character.
-        # add_special_tokens=False is CRITICAL to avoid start-of-sequence tokens
+        # add_special_tokens=False is CRITICAL.
         token_ids = tokenizer.encode(char, add_special_tokens=False)
         
-        # STRICT CONSTRAINT: Only allow if it maps to exactly ONE token
-        # This prevents the model from using weird merged tokens
+        # STRICT CONSTRAINT: Only allow single-token characters.
         if len(token_ids) == 1:
             mask[token_ids[0]] = 0.0
+            allowed_count += 1
+        else:
+            # Fallback for complex tokenizers (Mistral/Llama)
+            # Try encoding " " + char (leading space often stabilizes tokenization)
+            token_ids_with_prefix = tokenizer.encode(" " + char, add_special_tokens=False)
+            if len(token_ids_with_prefix) == 1:
+                mask[token_ids_with_prefix[0]] = 0.0
+                allowed_count += 1
             
     # 4. Explicitly Unblock EOS
-    mask[tokenizer.eos_token_id] = 0.0
+    if tokenizer.eos_token_id is not None:
+        mask[tokenizer.eos_token_id] = 0.0
     
-    return mask
+    _MASK_CACHE[cache_key] = mask
+
+    return mask     
 
 def dynamic_beam_search(
     model, 
     tokenizer, 
     auxiliary_info_ids: torch.Tensor, 
-    max_depth: int = 16, 
+    max_depth: int = None, 
     beam_width_schedule: List[int] = None, 
-    batch_size: int = 10, 
-    epsilon: float = 0.001
+    batch_size: int = None, 
+    epsilon: float = None
 ):
     """
     Implements 'Algorithm 2: Dynamic Beam Search' from the paper
@@ -71,6 +112,11 @@ def dynamic_beam_search(
        The 'EOS Threshold'. A sequence is forcibly ended 
        only if the model's predicted Pr(EOS) > ε'. 
     """
+    # We use None defaults to ensure we always read the latest Config values
+    if max_depth is None: max_depth = Config.MAX_PASSWORD_LENGTH
+    if beam_width_schedule is None: beam_width_schedule = Config.SCHEDULE_STANDARD
+    if batch_size is None: batch_size = getattr(Config, "BATCH_SIZE", 10)
+    if epsilon is None: epsilon = getattr(Config, "EPSILON_END_PROB", 0.01)
 
     # --- STEP 1: THE KV CACHE OPTIMIZATION ---
     # Tells PyTorch we are in inference mode (saves memory due to no gradients)
@@ -98,6 +144,7 @@ def dynamic_beam_search(
     # We started with a single empty candidate (the beginning of the password)
     # We will limit the model to generating only 95 ASCII characters
     # We force the probability of all other characters (emojis, chinese, etc.) to -Infinity
+
 
     # We generate the ASCII mask and apply it
     model_vocab_size = next_token_logits.shape[-1]
@@ -259,7 +306,7 @@ def dynamic_beam_search(
                 # --- CHECK FOR STOPPING (The "Junk Password" Fix) ---
                 # We subtract 1 from len() if the tokenizer adds a start token, 
                 # but usually just checking len() >= 8 is safe.
-                is_long_enough = len(candidate['sequence']) >= 8
+                is_long_enough = len(candidate['sequence']) >= getattr(Config, "MIN_PASSWORD_LENGTH", 4)
 
                 # If this specific candidate passes the Epsilon test, we save it as a "Finished Password"
                 if has_high_eos_prob[batch_idx] and is_long_enough:

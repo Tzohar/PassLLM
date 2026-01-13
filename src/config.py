@@ -1,0 +1,131 @@
+import os
+import torch
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+class Config:
+    # =========================================================================
+    # 1. DIRECTORY STRUCTURE
+    # =========================================================================
+    MODELS_DIR = BASE_DIR / "models"
+    TRAINING_DIR = BASE_DIR / "training"
+    LOGS_DIR = BASE_DIR / "logs"
+    RESULTS_DIR = BASE_DIR / "results"
+    CACHE_DIR = BASE_DIR / "cache"
+
+    # =========================================================================
+    # 2. FILE PATHS
+    # =========================================================================
+    # Model Weights
+    WEIGHTS_FILE = MODELS_DIR / "PassLLM_LoRA_Weights.pth"
+    ADAPTER_CONFIG_FILE = MODELS_DIR / "adapter_config.json"
+    
+    # Data Files
+    RAW_DATA_FILE = TRAINING_DIR / "passllm_raw_data.jsonl"
+    PROCESSED_DATA_FILE = TRAINING_DIR / "passllm_processed.pt"
+    
+    # Logging
+    APP_LOG_FILE = LOGS_DIR / "app.log"
+    TRAIN_LOG_FILE = LOGS_DIR / "training.log"
+
+    # =========================================================================
+    # 3. MODEL ARCHITECTURE & HARDWARE
+    # =========================================================================
+    # Qwen2.5-0.5B is excellent for CPU/Consumer GPU, but Mistral-7B-v0.1 is ideal and more powerful
+    BASE_MODEL_ID = "Qwen/Qwen2.5-0.5B"
+    
+    # Hardware Strategy
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    USE_4BIT = True         # Set False for higher precision if you have >24GB VRAM
+    USE_FLASH_ATTN = False  # Set True if on newer GPUs (A100, H100, RTX 3090/4090)
+    TORCH_DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
+    
+    # Reproducibility
+    SEED = 42
+
+    # =========================================================================
+    # 4. GENERATION ENGINE (INFERENCE)
+    # =========================================================================
+    MAX_PASSWORD_LENGTH = 16
+    MIN_PASSWORD_LENGTH = 4
+    EPSILON_END_PROB = 0.1   # Minimum probability for <EOS> to consider password complete
+    
+    # Beam Search Schedules (Dynamic Beam Widths)
+    # [Start Small] -> [Ramp Up] -> [Full Width]
+    SCHEDULE_STANDARD = [10, 50, 100, 100, 100, 200, 500, 500, 500, 500] + [1000] * 6
+    SCHEDULE_FAST     = [10, 20, 50] + [50] * 13
+    SCHEDULE_DEEP     = [50, 100, 500] + [2000] * 13
+    
+    # =========================================================================
+    # 5 VOCABULARY & CHARACTER CONSTRAINTS
+    # =========================================================================
+    # Custom rules to define what characters the model can generate in passwords
+    VOCAB_CUSTOM_ALLOW_UPPER = True   # A-Z
+    VOCAB_CUSTOM_ALLOW_LOWER = True   # a-z
+    VOCAB_CUSTOM_ALLOW_DIGITS = True  # 0-9
+    VOCAB_CUSTOM_ALLOW_SYMBOLS = True # !@#$%^&*...
+    
+    # Overrides (applied on TOP of any rules above) 
+    # Add specific characters here to whitelist them even if their category is disabled.
+    # Example: If you only want Digits + '@' + '!', set Digits=True and WHITELIST="@!"
+    VOCAB_WHITELIST = "" 
+    
+    # Add specific characters here to strict-block them.
+    # Example: Block spaces and quotes to prevent injection attacks or format errors.
+    # Recommended default: Block whitespace characters inside passwords
+    VOCAB_BLACKLIST = " \t\r\n"
+
+    # =========================================================================
+    # 6. TRAINING HYPERPARAMETERS (LoRA)
+    # =========================================================================
+    LEARNING_RATE = 2e-4
+    NUM_EPOCHS = 3
+    BATCH_SIZE = 4           # Increase if VRAM allows
+    GRAD_ACCUMULATION = 4    # Simulates larger batch size (4 * 4 = 16 effective batch)
+    
+    # LoRA Specifics
+    LORA_R = 16              # Rank
+    LORA_ALPHA = 32          # Scaling
+    LORA_DROPOUT = 0.05
+    # Target modules for Qwen/Llama architectures
+    LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
+    # =========================================================================
+    # 7. SYSTEM PROMPTS & TEMPLATES
+    # =========================================================================
+    SYSTEM_PROMPT = (
+        "As a targeted password guessing model, your task is to utilize the "
+        "provided information to guess the corresponding password."
+    )
+
+    @staticmethod
+    def get_formatted_input(pii_dict, target_password=None):
+        """
+        Formats input PII for the model.
+        Crucially uses NEWLINES to separate fields to prevent 'comma hallucination'.
+        """
+        # 1. Clean inputs (Strip whitespace)
+        clean_pii = {k: str(v).strip() for k, v in pii_dict.items() if v}
+        
+        # 2. Join with newlines
+        aux_str = "\n".join([f"{k}: {v}" for k, v in clean_pii.items()])
+        
+        # 3. Construct final string with clear separator
+        base_prompt = f"{Config.SYSTEM_PROMPT}\n{aux_str}\n\nPassword: "
+
+        if target_password is not None:
+            # TRAINING MODE: We want the model to learn the whole sequence
+            return f"{base_prompt}{target_password}"
+        else:
+            # INFERENCE MODE: We stop right at the trigger so the model completes it
+            return base_prompt
+    
+
+
+# =============================================================================
+# AUTO-INITIALIZATION
+# =============================================================================
+# Automatically create the folder structure when this file is imported
+for path in [Config.MODELS_DIR, Config.TRAINING_DIR, Config.LOGS_DIR, Config.RESULTS_DIR, Config.CACHE_DIR]:
+    path.mkdir(parents=True, exist_ok=True)

@@ -8,12 +8,7 @@ from datasets import load_dataset
 from tqdm import tqdm
 from src.model import LoRALayer
 from src.loader import build_model, inject_lora_layers 
-
-# --- CONFIGURATION ---
-DATA_FILE = "passllm_raw_data.jsonl"
-LEARNING_RATE = 1e-4
-code_dir = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE = os.path.join(code_dir, "training", "passllm_raw_data.jsonl")
+from src.config import Config 
 
 # Now that we have injected the new LoRA layers into the model in loader.py, 
 # we must tell PyTorch exactly what to update
@@ -58,10 +53,12 @@ def print_trainable_parameters(model):
 # potential vulnerabilities, so we restrict the loss calculation to the 
 # password portion of the sequence only
 def format_and_mask(sample, tokenizer):
-
     # We combine the instruction, the user info and the real password together
-    full_text = f"{sample['instruction']}\n{sample['input']}\nPassword: {sample['output']}"
-    
+    full_text = Config.get_formatted_input(
+        pii_dict=sample['pii'], 
+        target_password=sample['output']
+    )
+
     # Convert the full text into token IDs
     encodings = tokenizer(full_text, truncation=True, padding='max_length', max_length=512)
 
@@ -70,7 +67,10 @@ def format_and_mask(sample, tokenizer):
     labels = list(input_ids)
 
     # We re-tokenize JUST the prompt (Instruction + Input) to find its length
-    prompt_text = f"{sample['instruction']}\n{sample['input']}\n"
+    prompt_text = Config.get_formatted_input(
+        pii_dict=sample['pii'], 
+        target_password=None  # <--- Asking for just the prompt
+    )
     prompt_len = len(tokenizer(prompt_text, truncation=True, max_length=512)["input_ids"])
 
     # In PyTorch, setting a label to -100 means "Ignore this"
@@ -88,7 +88,7 @@ def prepare_data(tokenizer):
     print("Processing Data with Masking...")
 
     # This read the JSONL file full of existing PII and passwords
-    dataset = load_dataset("json", data_files=DATA_FILE, split="train")
+    dataset = load_dataset("json", data_files=str(Config.RAW_DATA_FILE), split="train")
 
     # We run the 'format_and_mask' function on every sample in the dataset
     tokenized_dataset = dataset.map(
@@ -112,7 +112,7 @@ def train_loop(model, tokenizer, dataloader):
     # We ignore the frozen parameters by filtering with 'requires_grad'
     optimizer = torch.optim.AdamW(
         filter(lambda p: p.requires_grad, model.parameters()), 
-        lr = LEARNING_RATE
+        lr = Config.LEARNING_RATE
     )
 
     # Set model to training mode to enable Dropout layers
@@ -120,7 +120,7 @@ def train_loop(model, tokenizer, dataloader):
 
     # The main training loop
     # The paper suggests several epochs, but for demo purposes we do just 1
-    for epoch in range(1): 
+    for epoch in range(Config.NUM_EPOCHS): 
         total_loss = 0
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch+1}")
 
@@ -153,19 +153,14 @@ def train_loop(model, tokenizer, dataloader):
 
 # Now we finally save the fine-tuned model
 def save_model(model):
-    print("Saving LoRA Weights...")
-
-    # Ensure the output directory exists
-    output_dir = "models"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "PassLLM_LoRA_Weights.pth")
+    print(f"Saving LoRA Weights to {Config.WEIGHTS_FILE}...")
 
     # We don't want to save the whole 14GB model again
     # We only want to save the parameters named "lora_..."
     lora_state_dict = {k: v for k, v in model.state_dict().items() if "lora_" in k}
 
-    torch.save(lora_state_dict, output_path)
-    print("Success! Saved to PassLLM_LoRA_Weights.pth")
+    torch.save(lora_state_dict, Config.WEIGHTS_FILE)
+    print("Success!")
 
 # Our main function that ties everything together, the logical flow
 
