@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import math
+import os
 from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
@@ -152,11 +153,16 @@ def train_loop(model, tokenizer, dataloader):
 def save_model(model):
     print("Saving LoRA Weights...")
 
+    # Ensure the output directory exists
+    output_dir = "models"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "PassLLM_LoRA_Weights.pth")
+
     # We don't want to save the whole 14GB model again
     # We only want to save the parameters named "lora_..."
     lora_state_dict = {k: v for k, v in model.state_dict().items() if "lora_" in k}
 
-    torch.save(lora_state_dict, "PassLLM_LoRA_Weights.pth")
+    torch.save(lora_state_dict, output_path)
     print("Success! Saved to PassLLM_LoRA_Weights.pth")
 
 # Our main function that ties everything together, the logical flow

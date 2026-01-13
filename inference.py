@@ -31,7 +31,7 @@ def main():
 
     candidates = dynamic_beam_search(
         model=model, tokenizer=tokenizer, auxiliary_info_ids=input_ids,
-        max_depth=16, beam_width_schedule=[150, 150, 100, 100, 100, 50, 50, 50, 20, 20, 20, 10, 10, 10, 10, 10, 10]
+        max_depth=16, beam_width_schedule=[10, 50, 100, 100, 100, 200, 500, 500, 500, 500, 1000, 1000, 1000, 1000, 1000, 1000]
     )
 
     print(f"\n--- GENERATED {len(candidates)} CANDIDATES ---")

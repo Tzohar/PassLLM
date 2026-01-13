@@ -3,13 +3,15 @@ import json
 import pandas as pd
 from faker import Faker
 from datetime import datetime, timedelta
+import os
 
 ## Initialize Faker for generating fake data (names, addresses, etc.)
 fake = Faker();
 
 # --- CONFIGURATION ---
-NUM_SAMPLES = 50000  # Size of our  "Synthetic Leak"
-OUTPUT_FILE = f"passllm_raw_data.jsonl"
+NUM_SAMPLES = 5000  # Size of our  "Synthetic Leak"
+CODE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_FILE = os.path.join(CODE_DIR, "passllm_raw_data.jsonl")
 
 # --- SECTION 2.3: REUSE PATTERNS (Simulating how people change passwords) ---
 # Common patterns for password reuse - capitalizations and minor substitutions & additions
