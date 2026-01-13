@@ -80,7 +80,7 @@ class Config:
     # 6. TRAINING HYPERPARAMETERS (LoRA)
     # =========================================================================
     LEARNING_RATE = 2e-4
-    NUM_EPOCHS = 3
+    NUM_EPOCHS = 1
     BATCH_SIZE = 4           # Increase if VRAM allows
     GRAD_ACCUMULATION = 4    # Simulates larger batch size (4 * 4 = 16 effective batch)
     
