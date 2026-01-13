@@ -58,12 +58,15 @@ def main():
 
     for cand in candidates[:15]: # Show top 15
         pwd = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
-        prob = torch.exp(torch.tensor(cand['score'])).item()
-        
-        if prob > 0.001:
-            print(f"{prob:.2%}       | {pwd}")
+        # Prefer normalized percentage if generation attached it
+        if 'probability' in cand:
+            print(f"{cand['probability']:.2f}% | {pwd} ({cand['score']:.4f} log)")
         else:
-            print(f"{cand['score']:.4f} (log) | {pwd}")
+            prob = torch.exp(torch.tensor(cand['score'])).item()
+            if prob > 0.001:
+                print(f"{prob:.2%}       | {pwd} ({cand['score']:.4f} log)")
+            else:
+                print(f"{cand['score']:.4f} (log) | {pwd}")
 
 if __name__ == "__main__":
     main()

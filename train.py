@@ -12,6 +12,8 @@ from src.loader import build_model, inject_lora_layers
 # --- CONFIGURATION ---
 DATA_FILE = "passllm_raw_data.jsonl"
 LEARNING_RATE = 1e-4
+code_dir = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(code_dir, "training", "passllm_raw_data.jsonl")
 
 # Now that we have injected the new LoRA layers into the model in loader.py, 
 # we must tell PyTorch exactly what to update

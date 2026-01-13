@@ -8,8 +8,9 @@ def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
     # Create a mask of -Infinity with the TRUE size from the model's logits
     mask = torch.full((true_vocab_size,), float('-inf'), device=device)
     
-    # Define allowed characters
-    printable_chars = [chr(i) for i in range(32, 127)]
+    # Define allowed characters (restrict to alphanumeric by default to avoid spaces/punctuation)
+    # If you want additional symbols, add them explicitly (e.g., "!@#$%&*()-_+=?")
+    printable_chars = list(string.ascii_letters + string.digits)
     
     # Unblock allowed characters
     for char in printable_chars:
@@ -85,8 +86,9 @@ def dynamic_beam_search(
         # We ran it once. We have 1 copy
         # Later, when we have 1,000 beams, they will all point to this single copy in memory
         shared_kv_cache = outputs.past_key_values
+        # record how many tokens are in the auxiliary info (PII)
+        info_len = auxiliary_info_ids.shape[-1]
 
-        
         # The model has read the PII, now it predicts the very first letter of the password
         # We only care about the last token's prediction (index -1)
         # But since we have only provided PII, the model's next token is the FIRST char of the password
@@ -321,6 +323,23 @@ def dynamic_beam_search(
         print(f"Depth {depth}: Kept {len(beams)} candidates. Found {len(final_candidates)} finished passwords.")
 
     # --- STEP 7: FINAL RETURN ---
-    # Return sorted results
+    # If we didn't find any 'finished' candidates, fall back to the current beam set
+    if len(final_candidates) == 0 and len(beams) > 0:
+        # Convert current beams into final candidates (they already have 'sequence' and 'score')
+        final_candidates = [b for b in beams]
+
+    # Compute normalized probabilities (from log-scores -> probabilities)
+    if len(final_candidates) > 0:
+        # Collect scores as tensor for numerical stability
+        scores = torch.tensor([c['score'] for c in final_candidates], device=model.device)
+        # Stabilize with max before exponentiating
+        scores = scores - torch.max(scores)
+        probs = torch.exp(scores)
+        probs = probs / torch.sum(probs)
+        # Attach probability (%) to each candidate
+        for i, c in enumerate(final_candidates):
+            c['probability'] = probs[i].item() * 100.0  # percentage
+
+    # Sort again by score and return
     final_candidates.sort(key=lambda x: x['score'], reverse=True)
     return final_candidates
