@@ -49,12 +49,13 @@ class Config:
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
     MIN_PASSWORD_LENGTH = 4
-    EPSILON_END_PROB = 0.1   # Minimum probability for <EOS> to consider password complete
+    EPSILON_END_PROB = 0.01   # Minimum probability for <EOS> to consider password complete
     
     # Beam Search Schedules (Dynamic Beam Widths)
     # [Start Small] -> [Ramp Up] -> [Full Width]
     SCHEDULE_STANDARD = [10, 50, 100, 100, 100, 200, 500, 500, 500, 500] + [1000] * 6
     SCHEDULE_FAST     = [10, 20, 50] + [50] * 13
+    # SCHEDULE_FAST     = [1] * 16
     SCHEDULE_DEEP     = [50, 100, 500] + [2000] * 13
     
     # =========================================================================
@@ -79,15 +80,15 @@ class Config:
     # =========================================================================
     # 6. TRAINING HYPERPARAMETERS (LoRA)
     # =========================================================================
-    LEARNING_RATE = 2e-4
-    NUM_EPOCHS = 1
-    BATCH_SIZE = 4           # Increase if VRAM allows
+    LEARNING_RATE = 5e-4
+    NUM_EPOCHS = 3
+    BATCH_SIZE = 10           # Increase if VRAM allows
     GRAD_ACCUMULATION = 4    # Simulates larger batch size (4 * 4 = 16 effective batch)
     
     # LoRA Specifics
     LORA_R = 16              # Rank
     LORA_ALPHA = 32          # Scaling
-    LORA_DROPOUT = 0.05
+    LORA_DROPOUT = 0.2
     # Target modules for Qwen/Llama architectures
     LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
@@ -106,26 +107,26 @@ class Config:
         Crucially uses NEWLINES to separate fields to prevent 'comma hallucination'.
         """
 
-        # We use "Unknown" (or "N/A") to hold space for missing data
+        # We use space to hold space for missing data
         schema_defaults = {
-            "first_name": "Unknown",
-            "middle_name": "Unknown",
-            "last_name": "Unknown",
-            "birth_year": "Unknown",
-            "birth_month": "Unknown",
-            "birth_day": "Unknown",
-            "id": "Unknown",
-            "username": "Unknown",
-            "email": "Unknown",
-            "address1": "Unknown",
-            "address2": "Unknown",
-            "city": "Unknown",
-            "state": "Unknown",
-            "country": "Unknown",
-            "zip": "Unknown",
-            "preferred_language": "Unknown",
-            "gender": "Unknown",
-            "sister_pw": "Unknown",
+            "first_name": "",
+            "middle_name": "",
+            "last_name": "",
+            "birth_year": "",
+            "birth_month": "",
+            "birth_day": "",
+            #"id": "",
+            #"username": "",
+            "email": "",
+            #"address1": "",
+            #"address2": "",
+            #"city": "",
+            #"state": "",
+            "country": "",
+            #"zip": "",
+            #"preferred_language": "",
+            #"gender": "",
+            "sister_pw": "",
         }
 
         # 1. Start with a copy of the defaults so we don't mutate the original
@@ -137,15 +138,18 @@ class Config:
             clean_input = {
                 k: str(v).strip() 
                 for k, v in pii_dict.items() 
-                if v and str(v).strip() # Ensures we don't overwrite "Unknown" with an empty string
+                if v and str(v).strip() # Ensures we don't overwrite with an empty string
             }
             # Update the defaults with the valid inputs
             final_data.update(clean_input)
         
-        # 3. Join with newlines (Iterating over final_data ensures all keys exist)
+        # FILTER: Remove keys where the value is still an empty string
+        final_data = {k: v for k, v in final_data.items() if v}
+
+        # Join with newlines (Iterating over final_data ensures all keys exist)
         aux_str = "\n".join([f"{k}: {v}" for k, v in final_data.items()])
         
-        # 4. Construct final string with clear separator
+        # Construct final string with clear separator
         base_prompt = f"{Config.SYSTEM_PROMPT}\n{aux_str}\n\nPassword: "
 
         print(base_prompt)
