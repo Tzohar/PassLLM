@@ -9,65 +9,45 @@ from src.config import Config
 _MASK_CACHE = {}
 
 def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
-    # Check cache first
     cache_key = (true_vocab_size, str(device))
-    if cache_key in _MASK_CACHE:
-        return _MASK_CACHE[cache_key]
+    if cache_key in _MASK_CACHE: return _MASK_CACHE[cache_key]
 
-    # Create a mask of -Infinity with the TRUE size from the model's logits
-    mask = torch.full((true_vocab_size,), float('-inf'), device=device)
-    
-    # Define allowed characters by config.py rules
-    allowed_chars = set()
-    # Note: We check if attributes exist to be safe, defaulting to "ALL_PRINTABLE" behavior
-    if getattr(Config, "VOCAB_CUSTOM_ALLOW_UPPER", True):
-        allowed_chars.update(string.ascii_uppercase)
-    if getattr(Config, "VOCAB_CUSTOM_ALLOW_LOWER", True):
-        allowed_chars.update(string.ascii_lowercase)
-    if getattr(Config, "VOCAB_CUSTOM_ALLOW_DIGITS", True):
-        allowed_chars.update(string.digits)
-    if getattr(Config, "VOCAB_CUSTOM_ALLOW_SYMBOLS", True):
-        allowed_chars.update(string.punctuation)
+    print(f"[System] Scanning vocabulary ({true_vocab_size} tokens) for valid characters...")
 
-    # Apply whitelist (force add)
+    allowed = set()
+    if getattr(Config, "VOCAB_CUSTOM_ALLOW_UPPER", True): allowed.update(string.ascii_uppercase)
+    if getattr(Config, "VOCAB_CUSTOM_ALLOW_LOWER", True): allowed.update(string.ascii_lowercase)
+    if getattr(Config, "VOCAB_CUSTOM_ALLOW_DIGITS", True): allowed.update(string.digits)
+    if getattr(Config, "VOCAB_CUSTOM_ALLOW_SYMBOLS", True): allowed.update(string.punctuation)
+
     if getattr(Config, "VOCAB_WHITELIST", ""):
-        allowed_chars.update(Config.VOCAB_WHITELIST)
+        allowed.update(Config.VOCAB_WHITELIST)
 
-    # Apply blacklist (force remove)
-    # Default blacklist: space, tab, newline
     blacklist = getattr(Config, "VOCAB_BLACKLIST", " \t\r\n")
     if blacklist:
-        for char in blacklist:
-            allowed_chars.discard(char)
+        allowed.difference_update(blacklist)
+    
+    mask = torch.full((true_vocab_size,), float('-inf'), device=device)
 
-    # Convert to sorted list for deterministic behavior
-    printable_chars = sorted(list(allowed_chars))
-    allowed_count = 0
+    # Loop through EVERY token in the vocabulary
+    for token_id in range(true_vocab_size):
+        # Decode the token to see what text it represents
+        # .strip() removes the invisible 'start of word' spaces common in Llama/Qwen
+        text = tokenizer.decode([token_id]).strip()
 
-    # Unblock allowed characters
-    for char in printable_chars:
-        # add_special_tokens=False is CRITICAL.
-        token_ids = tokenizer.encode(char, add_special_tokens=False)
-        
-        # STRICT CONSTRAINT: Only allow single-token characters.
-        if len(token_ids) == 1:
-            mask[token_ids[0]] = 0.0
-            allowed_count += 1
-        else:
-            # Fallback for complex tokenizers (Mistral/Llama)
-            # Try encoding " " + char (leading space often stabilizes tokenization)
-            token_ids_with_prefix = tokenizer.encode(" " + char, add_special_tokens=False)
-            if len(token_ids_with_prefix) == 1:
-                mask[token_ids_with_prefix[0]] = 0.0
-                allowed_count += 1
-            
-    # 4. Explicitly Unblock EOS
+        # If text is not empty AND contains ONLY allowed characters -> Allow it
+        if text and all(char in allowed for char in text):
+            mask[token_id] = 0.0
+
+    # Always allow End-of-Sequence (so it can stop)
     if tokenizer.eos_token_id is not None:
         mask[tokenizer.eos_token_id] = 0.0
-    
-    _MASK_CACHE[cache_key] = mask
 
-    return mask     
+    print(mask)
+    _MASK_CACHE[cache_key] = mask
+    return mask
+
+
 
 def dynamic_beam_search(
     model, 
@@ -208,11 +188,6 @@ def dynamic_beam_search(
         for i in range(0, len(active_beams), batch_size):
             batch_candidates = active_beams[i : i + batch_size]
             current_batch_size = len(batch_candidates)
-
-            # --- YOUR FIX: "Put the cache N times" ---
-            # We take the PII memory (shared_kv_cache) and virtually 
-            # copy it 'current_batch_size' times to match the input.
-            
 
             # 1. Create a new cache object for this batch
             # --- FIX: PREPARE CACHE BASED ON DEPTH ---
