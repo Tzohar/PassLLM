@@ -1,7 +1,4 @@
 __pycache__/
-*.dll
-*.so
-*.o
 *.pth
 *.zip
 results/
