@@ -59,6 +59,7 @@ def format_and_mask(sample, tokenizer):
         pii_dict=sample['pii'], 
         target_password=sample['output']
     )
+    full_text += tokenizer.eos_token
 
     # Convert the full text into token IDs
     encodings = tokenizer(full_text, truncation=True, padding='max_length', max_length=512)
