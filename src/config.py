@@ -105,14 +105,50 @@ class Config:
         Formats input PII for the model.
         Crucially uses NEWLINES to separate fields to prevent 'comma hallucination'.
         """
-        # 1. Clean inputs (Strip whitespace)
-        clean_pii = {k: str(v).strip() for k, v in pii_dict.items() if v}
+
+        # We use "Unknown" (or "N/A") to hold space for missing data
+        schema_defaults = {
+            "first_name": "Unknown",
+            "middle_name": "Unknown",
+            "last_name": "Unknown",
+            "birth_year": "Unknown",
+            "birth_month": "Unknown",
+            "birth_day": "Unknown",
+            "id": "Unknown",
+            "username": "Unknown",
+            "email": "Unknown",
+            "address1": "Unknown",
+            "address2": "Unknown",
+            "city": "Unknown",
+            "state": "Unknown",
+            "country": "Unknown",
+            "zip": "Unknown",
+            "preferred_language": "Unknown",
+            "gender": "Unknown",
+            "sister_pw": "Unknown",
+        }
+
+        # 1. Start with a copy of the defaults so we don't mutate the original
+        final_data = schema_defaults.copy()
+
+        # 2. Clean and merge the inputs
+        if pii_dict:
+            # Create a dictionary of only valid, non-empty inputs
+            clean_input = {
+                k: str(v).strip() 
+                for k, v in pii_dict.items() 
+                if v and str(v).strip() # Ensures we don't overwrite "Unknown" with an empty string
+            }
+            # Update the defaults with the valid inputs
+            final_data.update(clean_input)
         
-        # 2. Join with newlines
-        aux_str = "\n".join([f"{k}: {v}" for k, v in clean_pii.items()])
+        # 3. Join with newlines (Iterating over final_data ensures all keys exist)
+        aux_str = "\n".join([f"{k}: {v}" for k, v in final_data.items()])
         
-        # 3. Construct final string with clear separator
+        # 4. Construct final string with clear separator
         base_prompt = f"{Config.SYSTEM_PROMPT}\n{aux_str}\n\nPassword: "
+
+        print(base_prompt)
 
         if target_password is not None:
             # TRAINING MODE: We want the model to learn the whole sequence
