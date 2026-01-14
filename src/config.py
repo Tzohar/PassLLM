@@ -82,8 +82,8 @@ class Config:
     # =========================================================================
     LEARNING_RATE = 5e-4
     NUM_EPOCHS = 3
-    BATCH_SIZE = 6           # Increase if VRAM allows, 6 is the max on free Google Colab 
-    GRAD_ACCUMULATION = 10   # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
+    BATCH_SIZE = 4           # Increase if VRAM allows, 6 is the max on free Google Colab 
+    GRAD_ACCUMULATION = 16   # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
     
     # LoRA Specifics
     LORA_R = 16              # Rank
