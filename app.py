@@ -1,6 +1,7 @@
 import argparse
 import torch
 import sys
+import json
 from src.loader import build_model, inject_lora_layers 
 from inference import predict_password # Import logic
 from src.config import Config
@@ -9,17 +10,37 @@ from src.config import Config
 def parse_arguments():
     parser = argparse.ArgumentParser(description="PassLLM Command Line Tool")
     
-    # --- USER INPUTS ---
-    parser.add_argument("--name", type=str, required=True, help="Target's Name")
-    parser.add_argument("--born", type=str, required=True, help="Target's Birth Year")
-    parser.add_argument("--user", type=str, required=True, help="Target's Username")
-    parser.add_argument("--sister", type=str, required=True, help="Target's Sister Password")
-    
+    parser.add_argument("--file", type=str, default=None, required = True, help="Path to target.json file with PII")
+
     # --- CONFIGURATION ---
     parser.add_argument("--weights", type=str, default="models/PassLLM_LoRA_Weights.pth", help="Path to model weights")
     parser.add_argument("--fast", action="store_true", help="Use fast mode (less accurate, quicker)")
 
     return parser.parse_args()
+
+def load_profile(args):
+    """
+    Loads PII from either the JSON file OR the Command Line arguments.
+    """
+    profile = {}
+
+    # Priority 1: Load from JSON file
+    if args.file:
+        try:
+            with open(args.file, 'r', encoding='utf-8') as f:
+                profile = json.load(f)
+            print(f"[+] Loaded target info from: {args.file}")
+        except Exception as e:
+            print(f"[!] Error loading JSON: {e}")
+            sys.exit(1)
+
+    # Validation
+    if not profile:
+        print("[!] Error: No target information provided.")
+        print("    Usage: python app.py --file target.json")
+        sys.exit(1)
+
+    return profile
 
 def main():
     # Handle our arguments
@@ -38,12 +59,7 @@ def main():
         sys.exit(1)
 
     # Setup the target profile
-    profile = {
-        "name": args.name,
-        "born": args.born,
-        "user": args.user,
-        "sister": args.sister
-    }
+    profile = load_profile(args)
 
     if args.fast:
         schedule = Config.SCHEDULE_FAST
@@ -52,7 +68,7 @@ def main():
         schedule = Config.SCHEDULE_STANDARD
         print("[+] Mode: STANDARD (High accuracy)")
 
-    print(f"\n[+] Target Locked: {args.name}")
+    print(f"\n[+] Target Locked: {profile['first_name']}")
     print("[+] Cracking...")
 
     # CALL THE LOGIC FILE
