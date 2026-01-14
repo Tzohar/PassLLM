@@ -42,6 +42,7 @@ def load_profile(args):
 
     return profile
 
+
 def main():
     # Handle our arguments
     args = parse_arguments()
@@ -78,7 +79,7 @@ def main():
     print(f"{'CONFIDENCE':<12} | {'PASSWORD'}")
     print("-" * 30)
 
-    for cand in candidates[:250]: # Show top 150
+    for cand in candidates[:100]: # Show top 100
         pwd = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
         # Prefer normalized percentage if generation attached it
         if 'probability' in cand:
@@ -89,6 +90,31 @@ def main():
                 print(f"{prob:.2%}       | {pwd} ({cand['score']:.4f} log)")
             else:
                 print(f"{cand['score']:.4f} (log) | {pwd}")
+
+    # Construct filename: results/guesses_John.json
+    safe_name = profile.get('first_name', 'target').replace(" ", "_")
+    output_path = Config.RESULTS_DIR / f"guesses_{safe_name}.json"
+
+    print(f"\n[+] Saving {len(candidates)} candidates to: {output_path}")
+
+    output_data = []
+    for cand in candidates:
+        # Decode the text
+        text = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
+        
+        # Calculate probability if not already there
+        if 'probability' in cand:
+            prob = cand['probability']
+
+        output_data.append({
+            "password": text,
+            "confidence": f"{prob:.4f}%",
+            "log_score": cand['score']
+        })
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(output_data, f, indent=4)
+    
 
 if __name__ == "__main__":
     main()
