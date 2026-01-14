@@ -4,6 +4,7 @@ import math
 import os
 from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import get_cosine_schedule_with_warmup
 from datasets import load_dataset
 from tqdm import tqdm
 from src.model import LoRALayer
@@ -64,6 +65,7 @@ def format_and_mask(sample, tokenizer):
 
     # Initially, the labels are identical to the input
     input_ids = encodings['input_ids']
+    attention_mask = encodings['attention_mask']
     labels = list(input_ids)
 
     # We re-tokenize JUST the prompt (Instruction + Input) to find its length
@@ -71,12 +73,19 @@ def format_and_mask(sample, tokenizer):
         pii_dict=sample['pii'], 
         target_password=None  # <--- Asking for just the prompt
     )
-    prompt_len = len(tokenizer(prompt_text, truncation=True, max_length=512)["input_ids"])
+    # We use len(input_ids) to get the length without padding interference for now
+    prompt_ids = tokenizer(prompt_text, truncation=True, max_length=512)["input_ids"]
+    prompt_len = len(prompt_ids)
 
     # In PyTorch, setting a label to -100 means "Ignore this"
     # We set all tokens BEFORE the password to -100 so they don't contribute to the loss
     if prompt_len < len(labels):
         labels[:prompt_len] = [-100] * prompt_len
+
+    # attention_mask is 0 for padding tokens. We must set their labels to -100
+    for i, mask_val in enumerate(attention_mask):
+        if mask_val == 0:
+            labels[i] = -100
 
     return {
         "input_ids": input_ids,
@@ -102,17 +111,27 @@ def prepare_data(tokenizer):
 
     # bath_size=1: We process one sample at a time to save memory
     # Shuffle=True: We randomize the order of samples to improve training, SGD style
-    return DataLoader(tokenized_dataset, batch_size=1, shuffle=True)
+    return DataLoader(tokenized_dataset, Config.BATCH_SIZE, shuffle=True)
 
 # Training Loop
 def train_loop(model, tokenizer, dataloader):
     print("Starting Training Loop...")
+    global_step = 0
+    # Total number of training steps for scheduler
+    num_training_steps = (len(dataloader) // Config.GRAD_ACCUMULATION) * Config.NUM_EPOCHS
 
     # We use AdamW optimizer, which is standard for training transformers
     # We ignore the frozen parameters by filtering with 'requires_grad'
     optimizer = torch.optim.AdamW(
         filter(lambda p: p.requires_grad, model.parameters()), 
         lr = Config.LEARNING_RATE
+    )
+
+    # Warmup, as per the paper, helps stabilize training in the initial phase
+    scheduler = get_cosine_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=int(0.2 * num_training_steps), # 20% warmup as per Paper
+        num_training_steps=num_training_steps
     )
 
     # Set model to training mode to enable Dropout layers
@@ -123,8 +142,11 @@ def train_loop(model, tokenizer, dataloader):
     for epoch in range(Config.NUM_EPOCHS): 
         total_loss = 0
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch+1}")
+        
+        # Reset gradients at the start of each epoch
+        optimizer.zero_grad()
 
-        for batch in progress_bar:
+        for step, batch in enumerate(progress_bar):
 
             # Moving data to the GPU
             input_ids = batch['input_ids'].to(model.device)
@@ -136,19 +158,24 @@ def train_loop(model, tokenizer, dataloader):
 
             # Because we passed 'labels' with -100 masking, the model
             # automatically computes the loss only on the password tokens
-            loss = outputs.loss
+            loss = outputs.loss / Config.GRAD_ACCUMULATION
+            loss.backward()
 
-            # The learning
-            loss.backward()  # Backpropagation
-            optimizer.step() # Update LoRA parameters
-            optimizer.zero_grad() # Clear gradients for next step
+
+            if (step + 1) % Config.GRAD_ACCUMULATION == 0:
+                optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad()
+                global_step += 1
 
             # Updating the stats
-            total_loss += loss.item()
-            progress_bar.set_postfix(loss=loss.item())
+            current_loss = loss.item() * Config.GRAD_ACCUMULATION
+            total_loss += current_loss
+            progress_bar.set_postfix(loss=current_loss)
         
-        print(f"Epoch {epoch+1} Complete. Average Loss: {total_loss / len(dataloader)}")
-    
+        avg_loss = total_loss / len(dataloader)
+        print(f"Epoch {epoch+1} Complete. Average Loss: {avg_loss}")
+
     return model
 
 # Now we finally save the fine-tuned model
@@ -171,6 +198,9 @@ if __name__ == "__main__":
     model = inject_lora_layers(model)
     # 3. Freeze
     model = freeze_parameters(model)
+    # Set padding token if missing
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
     # 4. Verify
     print_trainable_parameters(model)
     # 5. Prepare Data

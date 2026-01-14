@@ -94,10 +94,11 @@ def generate_synthetic_data():
         
         # Format: "Name: [N], Born: [Y], User: [U], OldPW: [PW] ->"
         pii_dict = {
-            "Name": f"{profile['first_name']} {profile['last_name']}",
-            "Born": profile['birth_year'],
-            "User": profile['username'],
-            "SisterPW": sister_password
+            "first_name": f"{profile['first_name']}",
+            "last_name": f"{profile['last_name']}",
+            "birth_year": profile['birth_year'],
+            "username": profile['username'],
+            "sister_pw": sister_password
         }
         
         entry = {

@@ -82,7 +82,7 @@ class Config:
     # =========================================================================
     LEARNING_RATE = 5e-4
     NUM_EPOCHS = 3
-    BATCH_SIZE = 10           # Increase if VRAM allows
+    BATCH_SIZE = 5           # Increase if VRAM allows
     GRAD_ACCUMULATION = 4    # Simulates larger batch size (4 * 4 = 16 effective batch)
     
     # LoRA Specifics
