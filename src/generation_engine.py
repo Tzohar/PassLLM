@@ -129,7 +129,7 @@ def dynamic_beam_search(
     # We generate the ASCII mask and apply it
     model_vocab_size = next_token_logits.shape[-1]
     alphanumeric_mask = get_alphanumeric_mask(tokenizer, model_vocab_size, model.device)
-    # next_token_logits = next_token_logits + alphanumeric_mask
+    next_token_logits = next_token_logits + alphanumeric_mask
 
     # Turn raw scores (logits) into probabilities (0.0 to 1.0)
     next_token_probs = F.softmax(next_token_logits, dim=-1)
@@ -254,7 +254,7 @@ def dynamic_beam_search(
 
             # Get the probabilities for the next token, we apply our mask again
             next_token_logits = outputs.logits[:, -1, :]
-            # next_token_logits = next_token_logits + alphanumeric_mask
+            next_token_logits = next_token_logits + alphanumeric_mask
             next_token_probs = F.softmax(next_token_logits, dim=-1)
 
             # --- STEP 5: THE EPSILON THRESHOLD ---
