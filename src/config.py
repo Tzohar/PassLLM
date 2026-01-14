@@ -48,13 +48,13 @@ class Config:
     # 4. GENERATION ENGINE (INFERENCE)
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
-    MIN_PASSWORD_LENGTH = 4
-    EPSILON_END_PROB = 0.01   # Minimum probability for <EOS> to consider password complete
+    MIN_PASSWORD_LENGTH = 0
+    EPSILON_END_PROB = 0.4   # Minimum probability for <EOS> to consider password complete
     
     # Beam Search Schedules (Dynamic Beam Widths)
     # [Start Small] -> [Ramp Up] -> [Full Width]
-    SCHEDULE_STANDARD = [10, 50, 100, 100, 100, 200, 500, 500, 500, 500] + [1000] * 6
-    SCHEDULE_FAST     = [10, 20, 50] + [50] * 13
+    SCHEDULE_STANDARD = [50, 50, 100, 100, 100, 200, 500, 500, 500, 500] + [1000] * 6
+    SCHEDULE_FAST     = [20, 20, 50] + [50] * 13
     # SCHEDULE_FAST     = [1] * 16
     SCHEDULE_DEEP     = [50, 100, 500] + [2000] * 13
     
