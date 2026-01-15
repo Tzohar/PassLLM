@@ -134,14 +134,11 @@ class Config:
 
         # 2. Clean and merge the inputs
         if pii_dict:
-            # Create a dictionary of only valid, non-empty inputs
-            clean_input = {
-                k: str(v).strip() 
-                for k, v in pii_dict.items() 
-                if v and str(v).strip() # Ensures we don't overwrite with an empty string
-            }
-            # Update the defaults with the valid inputs
-            final_data.update(clean_input)
+            for k, v in pii_dict.items():
+                val = str(v).strip()
+                # KEY FIX: Check 'k in schema_defaults' before saving
+                if k in schema_defaults and v and val:
+                    final_data[k] = val
         
         # FILTER: Remove keys where the value is still an empty string
         final_data = {k: v for k, v in final_data.items() if v}
