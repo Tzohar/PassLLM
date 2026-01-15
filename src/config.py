@@ -61,15 +61,21 @@ class Config:
     # =========================================================================
     # 5 VOCABULARY & CHARACTER CONSTRAINTS
     # =========================================================================
-    # Custom rules to define what characters the model can generate in passwords
-    VOCAB_CUSTOM_ALLOW_UPPER = True   # A-Z
-    VOCAB_CUSTOM_ALLOW_LOWER = True   # a-z
-    VOCAB_CUSTOM_ALLOW_DIGITS = True  # 0-9
-    VOCAB_CUSTOM_ALLOW_SYMBOLS = True # !@#$%^&*...
+    # LINEAR BIAS SETTINGS (Additive Score)
+    # The model adds this number directly to the token's score.
+    #  0.0   = Neutral (Normal)
+    # -5.0   = Strong Penalty (Avoid unless necessary)
+    # -10.0  = Extreme Penalty (Almost impossible)
+    # +2.0   = Boost (Encourage this)  
+    VOCAB_BIAS_UPPER = 0.0     # Neutral
+    VOCAB_BIAS_LOWER = 0.0     # Neutral
+    VOCAB_BIAS_DIGITS = -5.0   # Strong penalty against numbers
+    VOCAB_BIAS_SYMBOLS = -2.0  # Mild penalty against symbols
     
     # Overrides (applied on TOP of any rules above) 
     # Add specific characters here to whitelist them even if their category is disabled.
     # Example: If you only want Digits + '@' + '!', set Digits=True and WHITELIST="@!"
+    # Whitelist still overrides biases (tokens here are always neutral)
     VOCAB_WHITELIST = "" 
     
     # Add specific characters here to strict-block them.

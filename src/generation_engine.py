@@ -4,46 +4,56 @@ import string
 from typing import List, Tuple, Dict
 from transformers.cache_utils import DynamicCache
 from src.config import Config
+import math
 
 # Key: (vocab_size, device_str) -> Value: mask_tensor
 _MASK_CACHE = {}
 
 def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
-    cache_key = (true_vocab_size, str(device))
+    # 1. Update cache key to track bias changes
+    bias_key = (Config.VOCAB_BIAS_UPPER, Config.VOCAB_BIAS_LOWER, Config.VOCAB_BIAS_DIGITS, Config.VOCAB_BIAS_SYMBOLS)
+    cache_key = (true_vocab_size, str(device), bias_key)
     if cache_key in _MASK_CACHE: return _MASK_CACHE[cache_key]
 
-    print(f"[System] Scanning vocabulary ({true_vocab_size} tokens) for valid characters...")
+    print(f"[System] Scanning vocabulary with biases: Digits={Config.VOCAB_BIAS_DIGITS}, Symbols={Config.VOCAB_BIAS_SYMBOLS}...")
 
-    allowed = set()
-    if getattr(Config, "VOCAB_CUSTOM_ALLOW_UPPER", True): allowed.update(string.ascii_uppercase)
-    if getattr(Config, "VOCAB_CUSTOM_ALLOW_LOWER", True): allowed.update(string.ascii_lowercase)
-    if getattr(Config, "VOCAB_CUSTOM_ALLOW_DIGITS", True): allowed.update(string.digits)
-    if getattr(Config, "VOCAB_CUSTOM_ALLOW_SYMBOLS", True): allowed.update(string.punctuation)
-
-    if getattr(Config, "VOCAB_WHITELIST", ""):
-        allowed.update(Config.VOCAB_WHITELIST)
-
-    blacklist = getattr(Config, "VOCAB_BLACKLIST", " \t\r\n")
-    if blacklist:
-        allowed.difference_update(blacklist)
+    # Pre-calculate category scores
+    s_upper = Config.VOCAB_BIAS_UPPER
+    s_lower = Config.VOCAB_BIAS_LOWER
+    s_digits = Config.VOCAB_BIAS_DIGITS
+    s_symbol = Config.VOCAB_BIAS_SYMBOLS
     
+    # Define sets for checking
+    u_set, l_set = set(string.ascii_uppercase), set(string.ascii_lowercase)
+    d_set, s_set = set(string.digits), set(string.punctuation)
+    
+    # Define Whitelist/Blacklist
+    whitelist = set(getattr(Config, "VOCAB_WHITELIST", ""))
+    blacklist = set(getattr(Config, "VOCAB_BLACKLIST", " \t\r\n"))
+
     mask = torch.full((true_vocab_size,), float('-inf'), device=device)
 
-    # Loop through EVERY token in the vocabulary
+    # Loop through EVERY token
     for token_id in range(true_vocab_size):
-        # Decode the token to see what text it represents
-        # .strip() removes the invisible 'start of word' spaces common in Llama/Qwen
         text = tokenizer.decode([token_id]).strip()
 
-        # If text is not empty AND contains ONLY allowed characters -> Allow it
-        if text and all(char in allowed for char in text):
-            mask[token_id] = 0.0
+        # Skip empty or blacklisted tokens
+        if not text or any(c in blacklist for c in text): continue
 
-    # Always allow End-of-Sequence (so it can stop)
+        if text in whitelist:
+            mask[token_id] = 0.0
+            continue
+
+        # Check category and assign the specific bias score
+        if   all(c in u_set for c in text): mask[token_id] = s_upper
+        elif all(c in l_set for c in text): mask[token_id] = s_lower
+        elif all(c in d_set for c in text): mask[token_id] = s_digits
+        elif all(c in s_set for c in text): mask[token_id] = s_symbol
+
+    # Always allow End-of-Sequence
     if tokenizer.eos_token_id is not None:
         mask[tokenizer.eos_token_id] = 0.0
 
-    print(mask)
     _MASK_CACHE[cache_key] = mask
     return mask
 
