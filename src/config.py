@@ -12,7 +12,7 @@ class Config:
     TRAINING_DIR = BASE_DIR / "training"
     LOGS_DIR = BASE_DIR / "logs"
     RESULTS_DIR = BASE_DIR / "results"
-    CACHE_DIR = BASE_DIR / "cache"
+    # CACHE_DIR = BASE_DIR / "cache"
 
     # =========================================================================
     # 2. FILE PATHS
@@ -48,15 +48,15 @@ class Config:
     # 4. GENERATION ENGINE (INFERENCE)
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
-    MIN_PASSWORD_LENGTH = 0
+    MIN_PASSWORD_LENGTH = 4
     EPSILON_END_PROB = 0.4   # Minimum probability for <EOS> to consider password complete
     
     # Beam Search Schedules (Dynamic Beam Widths)
     # [Start Small] -> [Ramp Up] -> [Full Width]
-    SCHEDULE_STANDARD = [50, 50, 100, 100, 100, 200, 500, 500, 500, 500] + [1000] * 6
+    SCHEDULE_STANDARD = [100, 100, 100, 100, 200, 200, 500, 500, 500, 500] + [1000] * 6
     SCHEDULE_FAST     = [20, 20, 50] + [50] * 13
     # SCHEDULE_FAST     = [1] * 16
-    SCHEDULE_DEEP     = [50, 100, 500] + [2000] * 13
+    SCHEDULE_DEEP     = [100, 200, 500] + [2000] * 13
     
     # =========================================================================
     # 5 VOCABULARY & CHARACTER CONSTRAINTS
@@ -69,7 +69,7 @@ class Config:
     # +2.0   = Boost (Encourage this)  
     VOCAB_BIAS_UPPER = 0.0     # Neutral
     VOCAB_BIAS_LOWER = 0.0     # Neutral
-    VOCAB_BIAS_DIGITS = -5.0   # Strong penalty against numbers
+    VOCAB_BIAS_DIGITS = -4.0   # Strong penalty against numbers
     VOCAB_BIAS_SYMBOLS = -2.0  # Mild penalty against symbols
     
     # Overrides (applied on TOP of any rules above) 
@@ -170,5 +170,6 @@ class Config:
 # AUTO-INITIALIZATION
 # =============================================================================
 # Automatically create the folder structure when this file is imported
-for path in [Config.MODELS_DIR, Config.TRAINING_DIR, Config.LOGS_DIR, Config.RESULTS_DIR, Config.CACHE_DIR]:
+for path in [Config.MODELS_DIR, Config.TRAINING_DIR, Config.LOGS_DIR, Config.RESULTS_DIR]:
+# for path in [Config.MODELS_DIR, Config.TRAINING_DIR, Config.LOGS_DIR, Config.RESULTS_DIR, Config.CACHE_DIR]:
     path.mkdir(parents=True, exist_ok=True)
