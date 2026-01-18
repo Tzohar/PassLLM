@@ -9,11 +9,11 @@ The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using 
 
 ## Capabilities
 
-* **State-of-the-Art Accuracy:** Achieves **+45% higher success rates** than leading benchmarks in targeted scenarios.
+* **State-of-the-Art Accuracy:** Achieves **+45% higher success rates** than leading benchmarks (RankGuess, TarGuess) in most scenarios.
 * **PII Inference:** With sufficient information, it successfully guesses **12.5% - 31.6%** of typical users within just **100 attempts**.
-* **Efficient Fine-Tuning:** Custom training loop utilizing *LoRA* to lower VRAM usage without sacrificing model capabilities.
-* **Advanced Inference:** Implements the paper's algorithm to maximize probability, prioritizing the most likely candidates.
-* **Data-Driven:** Can be trained on millions of real-world credentials to learn deep statistical patterns of human passwords.
+* **Efficient Fine-Tuning:** Custom training loop utilizing *LoRA* to lower VRAM usage without sacrificing model reasoning capabilities.
+* **Advanced Inference:** Implements the paper's algorithm to maximize probability, prioritizing the most likely candidates over random sampling.
+* **Data-Driven:** Can be trained on millions of real-world credentials to learn the deep statistical patterns of human passwords creation.
 
 
 
