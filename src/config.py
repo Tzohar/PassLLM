@@ -115,17 +115,14 @@ class Config:
 
         # We use space to hold space for missing data
         schema_defaults = {
-            "first_name": "",
-            "middle_name": "",
-            "last_name": "",
+            "name": "",
             "birth_year": "",
             "birth_month": "",
             "birth_day": "",
             #"id": "",
             #"username": "",
             "email": "",
-            #"address1": "",
-            #"address2": "",
+            "address": "",
             #"city": "",
             #"state": "",
             "country": "",
@@ -141,8 +138,12 @@ class Config:
         # 2. Clean and merge the inputs
         if pii_dict:
             for k, v in pii_dict.items():
-                val = str(v).strip()
-                # KEY FIX: Check 'k in schema_defaults' before saving
+                if isinstance(v, list):
+                    val = ", ".join(map(str, v))
+                else:
+                    val = str(v).strip()
+
+                # Check 'k in schema_defaults' before saving
                 if k in schema_defaults and v and val:
                     final_data[k] = val
         
