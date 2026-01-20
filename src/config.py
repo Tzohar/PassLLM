@@ -39,8 +39,8 @@ class Config:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     USE_4BIT = True         # Set False for higher precision if you have >24GB VRAM
     USE_FLASH_ATTN = True  # Set True if on newer GPUs (A100, H100, RTX 3090/4090)
-    TORCH_DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
-    
+    TORCH_DTYPE = torch.bfloat16 # Use bfloat16 for modern GPUs, float16 for older ones   
+
     # Reproducibility
     SEED = 42
 
@@ -86,10 +86,10 @@ class Config:
     # =========================================================================
     # 6. TRAINING HYPERPARAMETERS (LoRA)
     # =========================================================================
-    LEARNING_RATE = 5e-4
-    NUM_EPOCHS = 3
-    BATCH_SIZE = 4           # Increase if VRAM allows, 6 is the max on free Google Colab 
-    GRAD_ACCUMULATION = 16   # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
+    LEARNING_RATE = 2e-5
+    NUM_EPOCHS = 1
+    BATCH_SIZE = 2           # Increase if VRAM allows, 6 is the max on free Google Colab 
+    GRAD_ACCUMULATION = 32   # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
     
     # LoRA Specifics
     LORA_R = 16              # Rank

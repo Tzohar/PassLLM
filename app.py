@@ -92,7 +92,7 @@ def main():
                 print(f"{cand['score']:.4f} (log) | {pwd}")
 
     # Construct filename: results/guesses_John.json
-    safe_name = profile.get('first_name', 'target').replace(" ", "_")
+    safe_name = profile.get('name', 'target').replace(" ", "_")
     output_path = Config.RESULTS_DIR / f"guesses_{safe_name}.json"
 
     print(f"\n[+] Saving {len(candidates)} candidates to: {output_path}")

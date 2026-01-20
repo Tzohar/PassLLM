@@ -63,6 +63,7 @@ def generate_synthetic_data():
     for i in range(NUM_SAMPLES):
         # 1. Generate a fake user profile
         profile = {
+            "name": fake.name(),
             "first_name": fake.first_name(),
             "last_name": fake.last_name(),
             "birth_year": str(random.randint(1970, 2005)),
@@ -94,8 +95,7 @@ def generate_synthetic_data():
         
         # Format: "Name: [N], Born: [Y], User: [U], OldPW: [PW] ->"
         pii_dict = {
-            "first_name": f"{profile['first_name']}",
-            "last_name": f"{profile['last_name']}",
+            "name": f"{profile['name']}",
             "birth_year": profile['birth_year'],
             "username": profile['username'],
             "sister_pw": sister_password
