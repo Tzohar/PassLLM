@@ -32,7 +32,7 @@ class Config:
     # =========================================================================
     # 3. MODEL ARCHITECTURE & HARDWARE
     # =========================================================================
-    # Qwen2.5-0.5B is excellent for CPU/Consumer GPU, but Mistral-7B-v0.1 is ideal and more powerful
+    # qwen/Qwen2.5-0.5B is excellent for CPU/Consumer GPU, but mistralai/Mistral-7B-v0.1 is ideal and more powerful
     BASE_MODEL_ID = "mistralai/Mistral-7B-v0.1"    
 
     # Hardware Strategy
