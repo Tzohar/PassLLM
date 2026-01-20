@@ -33,12 +33,12 @@ class Config:
     # 3. MODEL ARCHITECTURE & HARDWARE
     # =========================================================================
     # Qwen2.5-0.5B is excellent for CPU/Consumer GPU, but Mistral-7B-v0.1 is ideal and more powerful
-    BASE_MODEL_ID = "Qwen/Qwen2.5-0.5B"
-    
+    BASE_MODEL_ID = "mistralai/Mistral-7B-v0.1"    
+
     # Hardware Strategy
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     USE_4BIT = True         # Set False for higher precision if you have >24GB VRAM
-    USE_FLASH_ATTN = False  # Set True if on newer GPUs (A100, H100, RTX 3090/4090)
+    USE_FLASH_ATTN = True  # Set True if on newer GPUs (A100, H100, RTX 3090/4090)
     TORCH_DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
     
     # Reproducibility
@@ -69,8 +69,8 @@ class Config:
     # +2.0   = Boost (Encourage this)  
     VOCAB_BIAS_UPPER = 0.0     # Neutral
     VOCAB_BIAS_LOWER = 0.0     # Neutral
-    VOCAB_BIAS_DIGITS = -4.0   # Strong penalty against numbers
-    VOCAB_BIAS_SYMBOLS = -2.0  # Mild penalty against symbols
+    VOCAB_BIAS_DIGITS = 0.0   # Strong penalty against numbers
+    VOCAB_BIAS_SYMBOLS = 0.0  # Mild penalty against symbols
     
     # Overrides (applied on TOP of any rules above) 
     # Add specific characters here to whitelist them even if their category is disabled.
@@ -120,9 +120,10 @@ class Config:
             "birth_month": "",
             "birth_day": "",
             #"id": "",
-            #"username": "",
+            "username": "",
             "email": "",
             "address": "",
+            "phone": "",
             #"city": "",
             #"state": "",
             "country": "",
@@ -138,12 +139,8 @@ class Config:
         # 2. Clean and merge the inputs
         if pii_dict:
             for k, v in pii_dict.items():
-                if isinstance(v, list):
-                    val = ", ".join(map(str, v))
-                else:
-                    val = str(v).strip()
-
-                # Check 'k in schema_defaults' before saving
+                val = str(v).strip()
+                # KEY FIX: Check 'k in schema_defaults' before saving
                 if k in schema_defaults and v and val:
                     final_data[k] = val
         
@@ -155,8 +152,6 @@ class Config:
         
         # Construct final string with clear separator
         base_prompt = f"{Config.SYSTEM_PROMPT}\n{aux_str}\n\nPassword: "
-
-        print(base_prompt)
 
         if target_password is not None:
             # TRAINING MODE: We want the model to learn the whole sequence
