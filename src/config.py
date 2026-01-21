@@ -50,12 +50,13 @@ class Config:
     MAX_PASSWORD_LENGTH = 16
     MIN_PASSWORD_LENGTH = 6
     EPSILON_END_PROB = 0.3   # Minimum probability for <EOS> to consider password complete
+    INFERENCE_BATCH_SIZE = 32
     
     # Beam Search Schedules (Dynamic Beam Widths)
     # [Start Small] -> [Ramp Up] -> [Full Width]
-    SCHEDULE_STANDARD = [100, 50, 50, 50, 100, 100, 200, 200, 200, 200] + [500] * 6
-    SCHEDULE_FAST     = [100, 50, 50] + [50] * 13
-    SCHEDULE_SUPERFAST = [50, 20, 20] + [30] * 13
+    SCHEDULE_STANDARD = [50, 50, 50, 50, 100, 100, 200, 200, 200, 200] + [500] * 6
+    SCHEDULE_FAST     = [50, 50, 50] + [50] * 13
+    SCHEDULE_SUPERFAST = [20, 20, 20] + [30] * 13
     SCHEDULE_DEEP     = [100, 200, 500] + [2000] * 13
     
     # =========================================================================
@@ -69,7 +70,7 @@ class Config:
     # +2.0   = Boost (Encourage this)  
     VOCAB_BIAS_UPPER = 0.0     # Neutral
     VOCAB_BIAS_LOWER = 0.0     # Neutral
-    VOCAB_BIAS_DIGITS = -2.0   # Strong penalty against numbers
+    VOCAB_BIAS_DIGITS = -1.0   # Strong penalty against numbers
     VOCAB_BIAS_SYMBOLS = -1.0  # Mild penalty against symbols
     
     # Overrides (applied on TOP of any rules above) 
@@ -88,12 +89,12 @@ class Config:
     # =========================================================================
     LEARNING_RATE = 2e-5
     NUM_EPOCHS = 1
-    BATCH_SIZE = 2           # Increase if VRAM allows, 6 is the max on free Google Colab 
+    TRAIN_BATCH_SIZE = 2           # Increase if VRAM allows, 6 is the max on free Google Colab 
     GRAD_ACCUMULATION = 32   # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
     
     # LoRA Specifics
     LORA_R = 16              # Rank
-    LORA_ALPHA = 32          # Scaling
+    LORA_ALPHA = 32          # Scaling, higher = more LoRA influence
     LORA_DROPOUT = 0.2
     # Target modules for Qwen/Llama architectures
     LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
@@ -169,3 +170,4 @@ class Config:
 for path in [Config.MODELS_DIR, Config.TRAINING_DIR, Config.LOGS_DIR, Config.RESULTS_DIR]:
 # for path in [Config.MODELS_DIR, Config.TRAINING_DIR, Config.LOGS_DIR, Config.RESULTS_DIR, Config.CACHE_DIR]:
     path.mkdir(parents=True, exist_ok=True)
+    

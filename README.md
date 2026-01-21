@@ -12,15 +12,16 @@ The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using 
 ## Capabilities
 
 * **State-of-the-Art Accuracy:** Achieves **+45% higher success rates** than leading benchmarks (RankGuess, TarGuess) in most scenarios.
-* **PII Inference:** With sufficient information, it successfully guesses **12.5% - 31.6%** of typical users within just **100 attempts**.
-* **Efficient Fine-Tuning:** Custom training loop utilizing *LoRA* to lower VRAM usage without sacrificing model reasoning capabilities.
+* **PII Inference:** With sufficient information, it successfully guesses **12.5% - 31.6%** of typical users within just **100 guesses**.
+* **Efficient Fine-Tuning:** Custom training loop utilizing *LoRA* to lower VRAM usage without sacrificing model reasoning capabilities, runnable on consumer GPUs.
 * **Advanced Inference:** Implements the paper's algorithm to maximize probability, prioritizing the most likely candidates over random sampling.
 * **Data-Driven:** Can be trained on millions of real-world credentials to learn the deep statistical patterns of human passwords creation.
+* **Pre-trained Weights:** Includes robust models pre-trained on millions of real-world records from major breaches (e.g., Post Millennial, ClixSense) combined with the COMB dataset.
 
 ## Use Guide
 ### Installation
 * **Python:** 3.10+
-* **Inference:** Runs on **Any Hardware**. A standard CPU or Mac (M1/M2) is sufficient to run the pre-trained model.
+* **Password Guessing:** Runs on **Any Hardware**. A standard CPU or Mac (M1/M2) is sufficient to run the pre-trained model.
 * **Training:** NVIDIA GPU with CUDA (RTX 3090/4090 recommended, Google Colab's free tier is sufficient).
 
 ```bash
@@ -32,14 +33,14 @@ cd PassLLM
 pip install torch transformers peft datasets bitsandbytes accelerate datasets
 ```
 
-### Targeted Guessing (Pre-Trained)
+### Password Guessing (Pre-Trained)
 
 Use the pre-trained LoRA weights to guess passwords for a specific target based on their PII.
 
 1.  Create a `target.json` file. You can include any field defined in `schema_defaults` within `src/config.py` (e.g., middle names, cities, usernames).
     ```json
     {
-      "first_name": "Johan",
+      "name": "Johan P.",
       "birth_year": "1966",
       "email": "johan66@gmail.com",
       "sister_pw": "Johan123"
@@ -53,7 +54,7 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
     * `--file`: Path to your target PII file.
     * `--fast`: Uses optimized beam search (omit for full deep search).
 
-The model will generate a ranked list of candidates (sorted by probability) and save them to `results/guesses_Johan.json`.
+The model will generate a ranked list of candidates (sorted by probability) and save them to `\results`.
 
 ### Training From Databases
 
@@ -64,7 +65,7 @@ To reproduce the paper's results or train on a new breach, you must provide a da
     
     *Example `passllm_raw_data.jsonl`:*
     ```json
-    {"pii": {"first_name": "Alice", "birth_year": "1990"}, "output": "Alice1990!"}
+    {"pii": {"name": "Alice", "birth_year": "1990"}, "output": "Alice1990!"}
     {"pii": {"email": "bob@test.com", "sister_pw": "iloveyou"}, "output": "iloveyou2"}
     ```
     *Note: Ensure your keys (e.g., `first_name`, `email`) match the schema defined in `src/config.py`.*
@@ -89,11 +90,12 @@ To reproduce the paper's results or train on a new breach, you must provide a da
     * **Freezes** the base model (Mistral/Qwen).
     * **Injects** Trainable LoRA adapters into Attention layers.
     * **Masks** the loss function so the model only learns to predict the *password*, not the PII.
-    * **Saves** the lightweight adapter weights (~20MB) to `models/PassLLM_LoRA_Weights.pth`.
+    * **Saves** the lightweight adapter weights to `models/PassLLM_LoRA_Weights.pth`.
 
-## 📊 Results & Demo
+## Results & Demo
 
-Here is a sample run targeting a user with the PII profile: `Name: Marcus Thorne, Year: 1976, Username: mthorne88, Country: Canada`.
+
+`{"name": "Marcus Thorne", "birth_year": "1976", "username": "mthorne88", "country": "Canada"}`:
 
 ```text
 $ python app.py --file target.json --superfast
@@ -101,8 +103,72 @@ $ python app.py --file target.json --superfast
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-22.66%     | 88888888!       
-12.50%     | 1976MTHORNE           
- 2.10%     | Password1966     
- 0.80%     | Johan@66         
+42.25%    | 123456       
+11.16%    | 888888           
+6.59%     | 1976mthorne     
+5.32%     | 88Marcus88
+5.28%     | 1234ABC
+3.78%     | 88Marcus!
+2.61%     | 1976Marcus
+... (85 passwords generated)
+```
+
+
+`{"name": "Elena Rodriguez", "birth_year": "1995", "birth_month": "12", "birth_day": "04", "email": "elena1.rod51@gmail.com"}`:
+
+```text
+$ python app.py --file target.json --fast
+
+--- TOP CANDIDATES ---
+CONFIDENCE | PASSWORD
+------------------------------
+11.62%    | 123456       
+10.98%    | 19950404           
+10.03%    | 1qaz2wsx     
+5.29%     | 19951204
+4.50%     | 1995elena
+4.40%     | 111111
+4.19%     | 1995Rod
+... (428 passwords generated)
+```
+
+
+`{"name": "Sophia M. Turner", "birth_year": "2001", "username": "soph_t", "email": "sturner99@yahoo.com", "country": "England", "sister_pw": ["soph12345", "13rockm4n", "01mamamia"]}`:
+
+```text
+$ python app.py --file target.json --fast
+
+--- TOP CANDIDATES ---
+CONFIDENCE | PASSWORD
+------------------------------
+47.79%    | 01mamamia       
+28.30%    | 13rockm4n            
+3.74%     | 01Mamamia     
+2.36%     | 13mamamia
+1.87%     | 13rockm4n!
+1.73%     | 01mamamia!
+1.60%     | 123mamamia
+... (435 passwords generated)
+```
+
+ 
+`{"name": "Omar Al-Fayed", "birth_year": "1992", "birth_month": "05", "birth_day": "18", "username": "omar.fayed92", "email": "o.alfayed@business.ae", "address": "Villa 14, Palm Jumeirah", "phone": "+971-50-123-4567", "country": "UAE", "sister_pw": "Amira1235"}`:
+
+```text
+$ python app.py --file target.json --fast
+
+--- TOP CANDIDATES ---
+CONFIDENCE | PASSWORD
+------------------------------
+20.28%    | 123456 
+5.30%     | 1qaz2wsx             
+4.56%     | 123Fayed      
+3.40%     | 1OmarFayed 
+2.86%     | 1992Omar
+2.36%     | 1234ABC
+1.86%     | 1992amira
+... (3091 passwords generated)
+```
+       
+       
 

@@ -103,7 +103,7 @@ def dynamic_beam_search(
     # We use None defaults to ensure we always read the latest Config values
     if max_depth is None: max_depth = Config.MAX_PASSWORD_LENGTH
     if beam_width_schedule is None: beam_width_schedule = Config.SCHEDULE_STANDARD
-    if batch_size is None: batch_size = getattr(Config, "BATCH_SIZE", 10)
+    if batch_size is None: batch_size = getattr(Config, "INFERENCE_BATCH_SIZE", 10)
     if epsilon is None: epsilon = getattr(Config, "EPSILON_END_PROB", 0.01)
 
     # --- STEP 1: THE KV CACHE OPTIMIZATION ---
@@ -287,6 +287,7 @@ def dynamic_beam_search(
                     # Create a finished entry
                     finished_candidate = candidate.copy()
                     finished_candidate['finished'] = True
+                    finished_candidate['cache'] = None
                     # Update score: Add log(P(EOS))
                     finished_candidate['score'] += torch.log(eos_probs[batch_idx]).item()
                     final_candidates.append(finished_candidate)
@@ -302,8 +303,8 @@ def dynamic_beam_search(
                     
                     # Slice out ONLY this candidate's row (keep dim 0 as size 1)
                     # k_layer shape is (Batch, Heads, Seq, Dim). We want (1, Heads, Seq, Dim)
-                    k_slice = k_layer[batch_idx : batch_idx+1, :, info_len:, :]
-                    v_slice = v_layer[batch_idx : batch_idx+1, :, info_len:, :]
+                    k_slice = k_layer[batch_idx : batch_idx+1, :, info_len:, :].detach().clone()
+                    v_slice = v_layer[batch_idx : batch_idx+1, :, info_len:, :].detach().clone()
                     
                     candidate_next_cache.append((k_slice, v_slice))
 

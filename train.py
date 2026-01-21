@@ -112,7 +112,7 @@ def prepare_data(tokenizer):
 
     # bath_size=1: We process one sample at a time to save memory
     # Shuffle=True: We randomize the order of samples to improve training, SGD style
-    return DataLoader(tokenized_dataset, Config.BATCH_SIZE, shuffle=True)
+    return DataLoader(tokenized_dataset, Config.TRAIN_BATCH_SIZE, shuffle=True)
 
 # Training Loop
 def train_loop(model, tokenizer, dataloader):
