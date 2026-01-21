@@ -14,7 +14,9 @@ def parse_arguments():
 
     # --- CONFIGURATION ---
     parser.add_argument("--weights", type=str, default="models/PassLLM_LoRA_Weights.pth", help="Path to model weights")
-    parser.add_argument("--fast", action="store_true", help="Use fast mode (less accurate, quicker)")
+    parser.add_argument("--fast", action="store_true", help="Use fast mode (less accurate, quicker, for low-end GPUs)")
+    parser.add_argument("--superfast", action="store_true", help="Use super fast mode (least accurate, quickest, for very low-end GPUs)")
+
 
     return parser.parse_args()
 
@@ -62,9 +64,14 @@ def main():
     # Setup the target profile
     profile = load_profile(args)
 
+    print(f"[+] Target Profile: {profile}")
+
     if args.fast:
         schedule = Config.SCHEDULE_FAST
         print("[+] Mode: FAST (Lower accuracy, higher speed)")
+    elif args.superfast:
+        schedule = Config.SCHEDULE_SUPERFAST
+        print("[+] Mode: SUPERFAST (Lowest accuracy, highest speed)")
     else:
         schedule = Config.SCHEDULE_STANDARD
         print("[+] Mode: STANDARD (High accuracy)")

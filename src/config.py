@@ -48,14 +48,14 @@ class Config:
     # 4. GENERATION ENGINE (INFERENCE)
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
-    MIN_PASSWORD_LENGTH = 4
+    MIN_PASSWORD_LENGTH = 8
     EPSILON_END_PROB = 0.4   # Minimum probability for <EOS> to consider password complete
     
     # Beam Search Schedules (Dynamic Beam Widths)
     # [Start Small] -> [Ramp Up] -> [Full Width]
-    SCHEDULE_STANDARD = [100, 100, 100, 100, 200, 200, 500, 500, 500, 500] + [1000] * 6
+    SCHEDULE_STANDARD = [50, 50, 50, 50, 100, 100, 200, 200, 200, 200] + [500] * 6
     SCHEDULE_FAST     = [20, 20, 50] + [50] * 13
-    # SCHEDULE_FAST     = [1] * 16
+    SCHEDULE_SUPERFAST = [20, 20, 20] + [30] * 13
     SCHEDULE_DEEP     = [100, 200, 500] + [2000] * 13
     
     # =========================================================================
@@ -69,8 +69,8 @@ class Config:
     # +2.0   = Boost (Encourage this)  
     VOCAB_BIAS_UPPER = 0.0     # Neutral
     VOCAB_BIAS_LOWER = 0.0     # Neutral
-    VOCAB_BIAS_DIGITS = 0.0   # Strong penalty against numbers
-    VOCAB_BIAS_SYMBOLS = 0.0  # Mild penalty against symbols
+    VOCAB_BIAS_DIGITS = -1.0   # Strong penalty against numbers
+    VOCAB_BIAS_SYMBOLS = -1.0  # Mild penalty against symbols
     
     # Overrides (applied on TOP of any rules above) 
     # Add specific characters here to whitelist them even if their category is disabled.
