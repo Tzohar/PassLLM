@@ -69,7 +69,7 @@ def main():
         schedule = Config.SCHEDULE_STANDARD
         print("[+] Mode: STANDARD (High accuracy)")
 
-    print(f"\n[+] Target Locked: {profile['first_name']}")
+    print(f"\n[+] Target Locked: {profile['name']}")
     print("[+] Cracking...")
 
     # CALL THE LOGIC FILE
