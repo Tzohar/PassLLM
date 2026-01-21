@@ -57,7 +57,7 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
     * `--fast`: Uses optimized, shallow beam search (omit for full deep search).
     * `--superfast`: Very quick but inaccurate, mainly for testing purposes.
 
-The model will generate a ranked list of candidates (sorted by probability) and save them to `/results`.
+An installation of ~15 GBs will commence. The model will generate a ranked list of candidates (sorted by probability) and save them to `/results`.
 
 ### Training From Databases
 
@@ -77,7 +77,7 @@ To reproduce the paper's results or train on a new breach, you must provide a da
     Edit `src/config.py` to match your hardware and dataset specifics:
     ```python
     # Hardware Settings
-    BATCH_SIZE = 4           # Lower to 1 or 2 if hitting OOM on consumer GPUs
+    TRAIN_BATCH_SIZE = 4           # Lower to 1 or 2 if hitting OOM on consumer GPUs
     GRAD_ACCUMULATION = 16   # Simulates larger batches (Effective Batch = 4 * 16 = 64)
     
     # Model Settings
