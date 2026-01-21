@@ -20,6 +20,7 @@ def predict_password(model, tokenizer, target_profile, max_depth=16, beam_schedu
         beam_schedule = Config.SCHEDULE_STANDARD
     
     prompt_text = Config.get_formatted_input(target_profile)
+    print(f"[+] Generated Prompt:\n{prompt_text}\n")
 
     input_ids = tokenizer(prompt_text, return_tensors="pt")["input_ids"].to(model.device)
     

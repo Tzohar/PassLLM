@@ -64,8 +64,6 @@ def main():
     # Setup the target profile
     profile = load_profile(args)
 
-    print(f"[+] Target Profile: {profile}")
-
     if args.fast:
         schedule = Config.SCHEDULE_FAST
         print("[+] Mode: FAST (Lower accuracy, higher speed)")
@@ -118,6 +116,11 @@ def main():
             "confidence": f"{prob:.4f}%",
             "log_score": cand['score']
         })
+
+    counter = 1
+    while output_path.exists():
+        output_path = Config.RESULTS_DIR / f"guesses_{safe_name}_{counter}.json"
+        counter += 1
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=4)
