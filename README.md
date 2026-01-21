@@ -56,7 +56,7 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
     * `--file`: Path to your target PII file.
     * `--fast`: Uses optimized beam search (omit for full deep search).
 
-The model will generate a ranked list of candidates (sorted by probability) and save them to `\results`.
+The model will generate a ranked list of candidates (sorted by probability) and save them to `results/`.
 
 ### Training From Databases
 
