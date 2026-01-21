@@ -170,5 +170,10 @@ CONFIDENCE | PASSWORD
 ... (3091 passwords generated)
 ```
        
-       
+## Disclaimer
 
+**Please read this section carefully before using.**
+
+* **Unofficial Implementation:** This repository is an independent reproduction and implementation of the research paper *"Password Guessing Using Large Language Models"* (USENIX Security 2025). I am **not** the author of the original paper, nor was I involved in its research or publication. Full credit for the concept and methodology belongs to **Yunkai Zou, Maoxiang An, and Ding Wang** (Nankai University).
+* **Educational Purpose Only:** This tool is intended **solely for educational purposes and security research**. It is designed to help security professionals, companies, institutions and casual users understand the risks of LLM-based password attacks and improve defense mechanisms.
+* **No Liability:** The author of this repository is not responsible for any misuse of this software. You may not use this tool to attack targets without explicit, authorized consent. **Any illegal use of this software is strictly prohibited.**
