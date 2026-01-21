@@ -1,4 +1,5 @@
 __pycache__/
-*.pth
 *.zip
+*.tar.gz
+*.log
 results/
