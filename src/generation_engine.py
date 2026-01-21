@@ -57,8 +57,6 @@ def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
     _MASK_CACHE[cache_key] = mask
     return mask
 
-
-
 def dynamic_beam_search(
     model, 
     tokenizer, 
@@ -218,34 +216,25 @@ def dynamic_beam_search(
                     expanded_cache.update(k_expanded, v_expanded, layer_idx)
 
             else:
-                # CASE B: DEPTH > 0 (Subsequent Generations)
-                # The candidates have diverged. Candidate A has memory "Joh", Candidate B has "199".
-                # We must GATHER their individual caches and STACK them into a single batch.
-                
+                # CASE B: DEPTH > 0
                 expanded_cache = DynamicCache()
-                
-                # We assume all candidates have the same number of layers
-                # We look at the first candidate to know how many layers to loop over
-                num_layers = len(batch_candidates[0]['cache']) 
-                
-                for layer_idx in range(num_layers):
-                    # 1. Collect the Keys (K) for this layer from all candidates in this batch
-                    # candidate['cache'][layer_idx][0] is the Key tensor for that specific candidate
-                    # We use torch.cat to stack them along dimension 0 (Batch Dimension)
-                    k_stacked = torch.cat(
-                        [b['cache'][layer_idx][0] for b in batch_candidates], 
-                        dim=0
-                    )
-                    
-                    # 2. Collect the Values (V) similarly
-                    v_stacked = torch.cat(
-                        [b['cache'][layer_idx][1] for b in batch_candidates], 
-                        dim=0
-                    )
-                    
-                    # 3. Add this combined layer to our batch cache
-                    expanded_cache.update(k_stacked, v_stacked, layer_idx)
+                num_layers = len(shared_kv_cache) 
 
+                for layer_idx in range(num_layers):
+                    # 1. Get Shared PII (Expand 1 -> Batch Size)
+                    k_shared, v_shared = shared_kv_cache[layer_idx]
+                    k_pii = k_shared.expand(current_batch_size, -1, -1, -1)
+                    v_pii = v_shared.expand(current_batch_size, -1, -1, -1)
+
+                    # 2. Get Candidate Passwords (Stack Beam -> Batch Size)
+                    k_pwd = torch.cat([b['cache'][layer_idx][0] for b in batch_candidates], dim=0)
+                    v_pwd = torch.cat([b['cache'][layer_idx][1] for b in batch_candidates], dim=0)
+
+                    # 3. Concatenate along Sequence Dimension (dim=2)
+                    k_combined = torch.cat([k_pii, k_pwd], dim=2)
+                    v_combined = torch.cat([v_pii, v_pwd], dim=2)
+
+                    expanded_cache.update(k_combined, v_combined, layer_idx)
 
             # --- PREPARE INPUT ---
             # We feed the LAST character of each candidate
@@ -313,8 +302,8 @@ def dynamic_beam_search(
                     
                     # Slice out ONLY this candidate's row (keep dim 0 as size 1)
                     # k_layer shape is (Batch, Heads, Seq, Dim). We want (1, Heads, Seq, Dim)
-                    k_slice = k_layer[batch_idx : batch_idx+1]
-                    v_slice = v_layer[batch_idx : batch_idx+1]
+                    k_slice = k_layer[batch_idx : batch_idx+1, :, info_len:, :]
+                    v_slice = v_layer[batch_idx : batch_idx+1, :, info_len:, :]
                     
                     candidate_next_cache.append((k_slice, v_slice))
 
