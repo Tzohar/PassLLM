@@ -42,7 +42,7 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
    ```bash
    mkdir -p models && curl -L https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth -o models/PassLLM_LoRA_Weights.pth
    
-2.  Create a `target.json` file in the main library. You can include any field defined in `schema_defaults` within `src/config.py` (e.g., middle names, cities, usernames).
+2.  Create a `target.jsonl` file in the main library. You can include any field defined in `schema_defaults` within `src/config.py` (e.g., middle names, cities, usernames).
     ```json
     {
       "name": "Johan P.", 
@@ -54,7 +54,7 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
     
 3.  **Run the inference engine:**
     ```bash
-    python app.py --file target.json --fast
+    python app.py --file target.jsonl --fast
     ```
     * `--file`: Path to your target PII file.
     * `--fast`: Uses optimized, shallow beam search (omit for full deep search).
@@ -103,7 +103,7 @@ To reproduce the paper's results or train on a new breach, you must provide a da
 `{"name": "Marcus Thorne", "birth_year": "1976", "username": "mthorne88", "country": "Canada"}`:
 
 ```text
-$ python app.py --file target.json --superfast
+$ python app.py --file target.jsonl --superfast
 
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
@@ -122,7 +122,7 @@ CONFIDENCE | PASSWORD
 `{"name": "Elena Rodriguez", "birth_year": "1995", "birth_month": "12", "birth_day": "04", "email": "elena1.rod51@gmail.com"}`:
 
 ```text
-$ python app.py --file target.json --fast
+$ python app.py --file target.jsonl --fast
 
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
@@ -141,7 +141,7 @@ CONFIDENCE | PASSWORD
 `{"name": "Sophia M. Turner", "birth_year": "2001", "username": "soph_t", "email": "sturner99@yahoo.com", "country": "England", "sister_pw": ["soph12345", "13rockm4n", "01mamamia"]}`:
 
 ```text
-$ python app.py --file target.json --fast
+$ python app.py --file target.jsonl --fast
 
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
@@ -160,7 +160,7 @@ CONFIDENCE | PASSWORD
 `{"name": "Omar Al-Fayed", "birth_year": "1992", "birth_month": "05", "birth_day": "18", "username": "omar.fayed92", "email": "o.alfayed@business.ae", "address": "Villa 14, Palm Jumeirah", "phone": "+971-50-123-4567", "country": "UAE", "sister_pw": "Amira1235"}`:
 
 ```text
-$ python app.py --file target.json --fast
+$ python app.py --file target.jsonl --fast
 
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
