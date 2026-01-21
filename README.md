@@ -6,7 +6,7 @@
 [![CUDA](https://img.shields.io/badge/CUDA-12.1-green.svg?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 ## About The Project
 
-**PassLLM is the world's most accurate targeted password guessing framework**, outperforming other models by 15% to 45% in most scenarios. It uses Personally Identifiable Information (PII) - such as _names, birthdays, phone numbers, emails and previous passwords_ - to predict the specific passwords a target is most likely to use. 
+**PassLLM is the world's most accurate targeted password guessing framework**, [outperforming other models by 15% to 45%](https://www.usenix.org/conference/usenixsecurity25/presentation/zou-yunkai) in most scenarios. It uses Personally Identifiable Information (PII) - such as _names, birthdays, phone numbers, emails and previous passwords_ - to predict the specific passwords a target is most likely to use. 
 The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using LoRA, enabling a private, high-accuracy framework that runs entirely on consumer PCs.
 
 ## Capabilities
@@ -16,7 +16,7 @@ The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using 
 * **Efficient Fine-Tuning:** Custom training loop utilizing *LoRA* to lower VRAM usage without sacrificing model reasoning capabilities, runnable on consumer GPUs.
 * **Advanced Inference:** Implements the paper's algorithm to maximize probability, prioritizing the most likely candidates over random sampling.
 * **Data-Driven:** Can be trained on millions of real-world credentials to learn the deep statistical patterns of human passwords creation.
-* **Pre-trained Weights:** Includes robust models pre-trained on millions of real-world records from major breaches (e.g., Post Millennial, ClixSense) combined with the COMB dataset.
+* **Pre-trained Weights:** Includes robust models pre-trained on millions of real-world records from major PII breaches (e.g., Post Millennial, ClixSense) combined with the COMB dataset.
 
 ## Use Guide
 ### Installation
