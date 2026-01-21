@@ -29,7 +29,7 @@ git clone [https://github.com/tzohar/PassLLM.git](https://github.com/tzohar/Pass
 cd PassLLM
 
 # 2. Install dependencies
-pip install torch transformers peft datasets bitsandbytes accelerate
+pip install torch transformers peft datasets bitsandbytes accelerate datasets
 ```
 
 ### Targeted Guessing (Pre-Trained)
@@ -91,7 +91,18 @@ To reproduce the paper's results or train on a new breach, you must provide a da
     * **Masks** the loss function so the model only learns to predict the *password*, not the PII.
     * **Saves** the lightweight adapter weights (~20MB) to `models/PassLLM_LoRA_Weights.pth`.
 
-Markdown
 ## 📊 Results & Demo
 
-Here is a sample run targeting a user with the PII profile: `Name: Johan, Year: 1966`.
+Here is a sample run targeting a user with the PII profile: `Name: Marcus Thorne, Year: 1976, Username: mthorne88, Country: Canada`.
+
+```text
+$ python app.py --file target.json --superfast
+
+--- TOP CANDIDATES ---
+CONFIDENCE | PASSWORD
+------------------------------
+22.66%     | 88888888!       
+12.50%     | 1976MTHORNE           
+ 2.10%     | Password1966     
+ 0.80%     | Johan@66         
+
