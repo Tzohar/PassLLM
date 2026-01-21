@@ -26,11 +26,11 @@ The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using 
 
 ```bash
 # 1. Clone the repository
-git clone [https://github.com/tzohar/PassLLM.git](https://github.com/tzohar/PassLLM.git)
+git clone https://github.com/tzohar/PassLLM.git
 cd PassLLM
 
 # 2. Install dependencies
-pip install torch transformers peft datasets bitsandbytes accelerate datasets
+pip install torch transformers peft datasets bitsandbytes accelerate
 ```
 
 ### Password Guessing (Pre-Trained)
@@ -42,7 +42,7 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
 2.  Create a `target.json` file in the main library. You can include any field defined in `schema_defaults` within `src/config.py` (e.g., middle names, cities, usernames).
     ```json
     {
-      "name": "Johan P.",
+      "name": "Johan P.", 
       "birth_year": "1966",
       "email": "johan66@gmail.com",
       "sister_pw": "Johan123"
@@ -54,9 +54,10 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
     python app.py --file target.json --fast
     ```
     * `--file`: Path to your target PII file.
-    * `--fast`: Uses optimized beam search (omit for full deep search).
+    * `--fast`: Uses optimized, shallow beam search (omit for full deep search).
+    * `--superfast`: Very quick but inaccurate, mainly for testing purposes.
 
-The model will generate a ranked list of candidates (sorted by probability) and save them to `results/`.
+The model will generate a ranked list of candidates (sorted by probability) and save them to `/results`.
 
 ### Training From Databases
 
@@ -95,7 +96,6 @@ To reproduce the paper's results or train on a new breach, you must provide a da
     * **Saves** the lightweight adapter weights to `models/PassLLM_LoRA_Weights.pth`.
 
 ## Results & Demo
-
 
 `{"name": "Marcus Thorne", "birth_year": "1976", "username": "mthorne88", "country": "Canada"}`:
 
@@ -171,7 +171,6 @@ CONFIDENCE | PASSWORD
 1.86%     | 1992amira
 ... (3091 passwords generated)
 ```
-       
 ## Disclaimer
 
 **Please read this section carefully before using.**
