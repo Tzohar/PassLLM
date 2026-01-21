@@ -37,7 +37,9 @@ pip install torch transformers peft datasets bitsandbytes accelerate datasets
 
 Use the pre-trained LoRA weights to guess passwords for a specific target based on their PII.
 
-1.  Create a `target.json` file. You can include any field defined in `schema_defaults` within `src/config.py` (e.g., middle names, cities, usernames).
+1. Download the [trained weights](https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth) (~160 MB) and place them in the `models/` directory.
+
+2.  Create a `target.json` file in the main library. You can include any field defined in `schema_defaults` within `src/config.py` (e.g., middle names, cities, usernames).
     ```json
     {
       "name": "Johan P.",
@@ -47,7 +49,7 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
     }
     ```
     
-2.  **Run the inference engine:**
+3.  **Run the inference engine:**
     ```bash
     python app.py --file target.json --fast
     ```
