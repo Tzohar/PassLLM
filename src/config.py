@@ -100,7 +100,7 @@ class Config:
     # Add specific characters here to strict-block them.
     # Example: Block spaces and quotes to prevent injection attacks or format errors.
     # Recommended default: Block whitespace characters inside passwords
-    VOCAB_BLACKLIST = " \t\r\n"
+    VOCAB_BLACKLIST = ""
 
     # =========================================================================
     # 6. TRAINING HYPERPARAMETERS (LoRA)
@@ -192,7 +192,7 @@ DEFAULT_VOCAB_BIAS_LOWER = 0.0
 DEFAULT_VOCAB_BIAS_DIGITS = -1.0
 DEFAULT_VOCAB_BIAS_SYMBOLS = -1.0
 DEFAULT_VOCAB_WHITELIST = ""
-DEFAULT_VOCAB_BLACKLIST = " \t\r\n"
+DEFAULT_VOCAB_BLACKLIST = ""
 DEFAULT_DEVICE = "cuda"
 DEFAULT_USE_4BIT = True
 DEFAULT_LORA_R = 16
