@@ -47,9 +47,11 @@ class Config:
         DEVICE = torch_directml.device() # This targets AMD devices via DirectML
     else:
         DEVICE = "cpu"
+
     # 4-bit quantization to save VRAM (requires compatible GPU), disable for AMD/CPU-only setups
-    USE_4BIT = False         
-    TORCH_DTYPE = torch.float16 
+    # Must be enabled for Nvidia GPUs, otherwise performance will be poor
+    USE_4BIT = True         
+    TORCH_DTYPE = torch.bfloat16 
 
     # Reproducibility
     SEED = 42
@@ -65,8 +67,8 @@ class Config:
 
     # Batch size for inference (number of passwords to generate in parallel)
     # Lower values reduce VRAM usage but may slow generation
-    # Nvidia GPUs can typically handle higher batch sizes than AMD/CPU
-    INFERENCE_BATCH_SIZE = 6
+    # Nvidia GPUs can typically handle higher batch sizes than AMD/CPU, because 4-bit quantization is only supported on Nvidia
+    INFERENCE_BATCH_SIZE = 32
     
     # Beam Search Schedules (Dynamic Beam Widths)
     # [Start Small] -> [Ramp Up] -> [Full Width]
