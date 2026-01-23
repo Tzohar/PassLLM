@@ -43,7 +43,7 @@ Use the pre-trained LoRA weights to guess passwords for a specific target based 
 1. Download the [trained weights](https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth) (~160 MB) and place them in the `models/` directory.
    Alternatively, run this command in your terminal:
    ```bash
-   mkdir -p models && curl -L https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth -o models/PassLLM_LoRA_Weights.pth
+   curl -L https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth -o models/PassLLM_LoRA_Weights.pth
    
 2.  Create a `target.jsonl` file in the main library. You can include any field defined in `schema_defaults` within `src/config.py` (e.g., middle names, cities, usernames).
     ```json
