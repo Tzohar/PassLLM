@@ -4,3 +4,4 @@ peft
 datasets
 bitsandbytes
 accelerate
+torch-directml; sys_platform == 'win32'

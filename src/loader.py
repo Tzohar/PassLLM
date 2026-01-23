@@ -9,7 +9,8 @@ def build_model():
 
     # Configure Quantization based on Config
     # If Config.USE_4BIT is True, we use the modern BitsAndBytes config object
-    if Config.USE_4BIT:
+    # We MUST ensure that 4-bit quantization is only used on compatible devices (e.g., NVIDIA GPUs)
+    if Config.USE_4BIT and Config.DEVICE == "cuda":
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=Config.TORCH_DTYPE,
@@ -19,11 +20,11 @@ def build_model():
     else:
         quantization_config = None
 
-    # We load the model with "load_in_4bit=True" to save memory
-    # It compresses the 14GB model to around 4GB so it can fit in limited GPU memory
+    # We load the model from HuggingFace with the specified device and dtype
     model = AutoModelForCausalLM.from_pretrained(
         Config.BASE_MODEL_ID,
-        device_map="auto",
+        device_map=None, # We will move it to the correct device later
+        dtype=Config.TORCH_DTYPE,
         quantization_config=quantization_config,
     )
 

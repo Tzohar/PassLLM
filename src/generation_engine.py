@@ -99,17 +99,17 @@ def dynamic_beam_search(
     7. epsilon (ε):
        The 'EOS Threshold'. A sequence is forcibly ended 
        only if the model's predicted Pr(EOS) > ε'. 
-    """
+    """ 
+    print(1)
     # We use None defaults to ensure we always read the latest Config values
     if max_depth is None: max_depth = Config.MAX_PASSWORD_LENGTH
     if beam_width_schedule is None: beam_width_schedule = Config.SCHEDULE_STANDARD
     if batch_size is None: batch_size = getattr(Config, "INFERENCE_BATCH_SIZE", 10)
     if epsilon is None: epsilon = getattr(Config, "EPSILON_END_PROB", 0.01)
-
+    print(2)
     # --- STEP 1: THE KV CACHE OPTIMIZATION ---
     # Tells PyTorch we are in inference mode (saves memory due to no gradients)
     with torch.no_grad():
-        
         # Feed the auxiliary info (PII) into the model ONCE
         outputs = model(
             input_ids=auxiliary_info_ids, 
@@ -128,26 +128,36 @@ def dynamic_beam_search(
         # But since we have only provided PII, the model's next token is the FIRST char of the password
         next_token_logits = outputs.logits[:, -1, :]
 
+
     # --- STEP 2: INITIALIZE CANDIDATES ---
     # We started with a single empty candidate (the beginning of the password)
     # We will limit the model to generating only 95 ASCII characters
     # We force the probability of all other characters (emojis, chinese, etc.) to -Infinity
-
-
+    print(3)
+    
     # We generate the ASCII mask and apply it
     model_vocab_size = next_token_logits.shape[-1]
     alphanumeric_mask = get_alphanumeric_mask(tokenizer, model_vocab_size, model.device)
-    next_token_logits = next_token_logits + alphanumeric_mask
 
+    # Move logits to CPU for processing (saves GPU memory and ensures compatibility)
+    logits_cpu = next_token_logits.cpu()
+    logits_cpu = logits_cpu + alphanumeric_mask.cpu()
+    
     # Turn raw scores (logits) into probabilities (0.0 to 1.0)
-    next_token_probs = F.softmax(next_token_logits, dim=-1)
+    # ON CPU 
+    next_token_probs = F.softmax(logits_cpu, dim=-1)
 
     # For the first step (depth=0), we use K[0].
+    # ON CPU
     current_k = beam_width_schedule[0] if beam_width_schedule else 100
 
     # Get the top-K tokens and their probabilities.
+    # ON CPU
     top_k_probs, top_k_ids = torch.topk(next_token_probs, k=current_k, dim=-1)
         
+    # MOVE BACK TO DEVICE: So the next model loop can use them
+    top_k_ids = top_k_ids.to(model.device)
+
     # Each "Beam" is a dictionary tracking:
     # - 'sequence': The password characters generated so far
     # - 'score': The cumulative probability (log probability)
@@ -160,7 +170,7 @@ def dynamic_beam_search(
     for i in range(current_k):
         beams.append({
             'sequence': [top_k_ids[0, i].item()], # The first character ID
-            'score': torch.log(top_k_probs[0, i]).item(), # Log probability
+            'score': torch.log(top_k_probs.cpu()[0, i]).item(), # Log probability
             'finished': False
         })
         
@@ -253,8 +263,15 @@ def dynamic_beam_search(
 
             # Get the probabilities for the next token, we apply our mask again
             next_token_logits = outputs.logits[:, -1, :]
-            next_token_logits = next_token_logits + alphanumeric_mask
-            next_token_probs = F.softmax(next_token_logits, dim=-1)
+            logits_cpu = next_token_logits.cpu()
+            logits_cpu = logits_cpu + alphanumeric_mask.cpu()
+            next_token_probs_cpu = F.softmax(logits_cpu, dim=-1)
+
+            vocab_probs, vocab_ids = torch.topk(next_token_probs_cpu, k=current_beam_width, dim=-1)
+
+            # MOVE BACK TO DEVICE: So the next model loop can use them
+            vocab_probs = vocab_probs.to(model.device)
+            vocab_ids = vocab_ids.to(model.device)
 
             # --- STEP 5: THE EPSILON THRESHOLD ---
 
@@ -262,7 +279,7 @@ def dynamic_beam_search(
             # We assume tokenizer.eos_token_id is the ID for "End of Sequence"
             # eos_probs is basically Pr(EOS) for each candidate, forming a vector of size (batch_size,)
             eos_id = tokenizer.eos_token_id
-            eos_probs = next_token_probs[:, eos_id] # Shape: (batch_size,)
+            eos_probs = next_token_probs_cpu[:, eos_id] # Shape: (batch_size,)
 
             # Identify which candidates WANT to stop and ARE ALLOWED to stop
             # Condition A: The model predicts EOS is likely (Implicit in beam search)
@@ -272,7 +289,7 @@ def dynamic_beam_search(
             # Process the Top-K Predictions
             # We take the top beam_width characters to expand our search
             # Note: We expand *more* than we need so we can filter later
-            vocab_probs, vocab_ids = torch.topk(next_token_probs, k=current_beam_width, dim=-1)
+            vocab_probs, vocab_ids = torch.topk(next_token_probs_cpu, k=current_beam_width, dim=-1)
 
             new_kv_cache = outputs.past_key_values
 

@@ -1,5 +1,10 @@
 import os
 import torch
+try:
+    import torch_directml
+    dml_available = True
+except ImportError:
+    dml_available = False
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,11 +40,16 @@ class Config:
     # qwen/Qwen2.5-0.5B is excellent for CPU/Consumer GPU, but mistralai/Mistral-7B-v0.1 is ideal and more powerful
     BASE_MODEL_ID = "mistralai/Mistral-7B-v0.1"    
 
-    # Hardware Strategy
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    USE_4BIT = True         # Set False for higher precision if you have >24GB VRAM
-    USE_FLASH_ATTN = True  # Set True if on newer GPUs (A100, H100, RTX 3090/4090)
-    TORCH_DTYPE = torch.bfloat16 # Use bfloat16 for modern GPUs, float16 for older ones   
+    # Automatically selects device; uses GPU if an NVIDIA GPU is available, otherwise falls back to CPU (slower)
+    if torch.cuda.is_available():
+        DEVICE = "cuda"
+    elif dml_available:
+        DEVICE = torch_directml.device() # This targets AMD devices via DirectML
+    else:
+        DEVICE = "cpu"
+    # 4-bit quantization to save VRAM (requires compatible GPU), disable for AMD/CPU-only setups
+    USE_4BIT = False         
+    TORCH_DTYPE = torch.float16 
 
     # Reproducibility
     SEED = 42
@@ -49,8 +59,14 @@ class Config:
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
     MIN_PASSWORD_LENGTH = 6
-    EPSILON_END_PROB = 0.3   # Minimum probability for <EOS> to consider password complete
-    INFERENCE_BATCH_SIZE = 32
+
+    # Minimum probability for <EOS> to consider password complete
+    EPSILON_END_PROB = 0.3  
+
+    # Batch size for inference (number of passwords to generate in parallel)
+    # Lower values reduce VRAM usage but may slow generation
+    # Nvidia GPUs can typically handle higher batch sizes than AMD/CPU
+    INFERENCE_BATCH_SIZE = 6
     
     # Beam Search Schedules (Dynamic Beam Widths)
     # [Start Small] -> [Ramp Up] -> [Full Width]

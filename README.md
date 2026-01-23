@@ -33,7 +33,7 @@ git clone https://github.com/tzohar/PassLLM.git
 cd PassLLM
 
 # 2. Install dependencies
-pip install torch transformers peft datasets bitsandbytes accelerate
+pip install torch torch-directml transformers peft datasets bitsandbytes accelerate 
 ```
 
 ### Password Guessing (Pre-Trained)

@@ -54,9 +54,20 @@ def main():
     try:
         model, tokenizer = build_model()
         model = inject_lora_layers(model)
+
         # Load the fine-tuned weights
-        model.load_state_dict(torch.load(args.weights, map_location=model.device), strict=False)
+        # We're using the cpu map_location to ensure compatibility across devices
+        print(f"Loading Weights from: {args.weights}...")
+
+        # Apply the weights to the model
+        checkpoint = torch.load(args.weights, map_location="cpu")
+        model.load_state_dict(checkpoint, strict=False)
+
+        # Move model to the appropriate device after it's loaded
+        model.to(Config.DEVICE)
+
         model.eval()
+
     except FileNotFoundError:
         print(f"CRITICAL ERROR: Weights not found at {args.weights}")
         sys.exit(1)
