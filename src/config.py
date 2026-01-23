@@ -60,7 +60,7 @@ class Config:
     # 4. GENERATION ENGINE (INFERENCE)
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
-    MIN_PASSWORD_LENGTH = 9
+    MIN_PASSWORD_LENGTH = 8
 
     # Minimum probability for <EOS> to consider password complete
     EPSILON_END_PROB = 0.3  
