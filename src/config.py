@@ -60,7 +60,7 @@ class Config:
     # 4. GENERATION ENGINE (INFERENCE)
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
-    MIN_PASSWORD_LENGTH = 6
+    MIN_PASSWORD_LENGTH = 9
 
     # Minimum probability for <EOS> to consider password complete
     EPSILON_END_PROB = 0.3  
@@ -86,10 +86,10 @@ class Config:
     # -5.0   = Strong Penalty (Avoid unless necessary)
     # -10.0  = Extreme Penalty (Almost impossible)
     # +2.0   = Boost (Encourage this)  
-    VOCAB_BIAS_UPPER = 0.0     # Neutral
-    VOCAB_BIAS_LOWER = 0.0     # Neutral
-    VOCAB_BIAS_DIGITS = -1.0   # Strong penalty against numbers
-    VOCAB_BIAS_SYMBOLS = -1.0  # Mild penalty against symbols
+    VOCAB_BIAS_UPPER = 0.0     
+    VOCAB_BIAS_LOWER = 0.0     
+    VOCAB_BIAS_DIGITS = -1.0   
+    VOCAB_BIAS_SYMBOLS = -1.0  
     
     # Overrides (applied on TOP of any rules above) 
     # Add specific characters here to whitelist them even if their category is disabled.
@@ -179,7 +179,28 @@ class Config:
             # INFERENCE MODE: We stop right at the trigger so the model completes it
             return base_prompt
     
-
+# ============================================================================
+# DEFAULTS FOR RESETTING CONFIGURATION
+# ============================================================================
+# --- FACTORY DEFAULTS (DO NOT EDIT MANUALLY) ---
+DEFAULT_MIN_PASSWORD_LENGTH = 8
+DEFAULT_MAX_PASSWORD_LENGTH = 16
+DEFAULT_EPSILON_END_PROB = 0.3
+DEFAULT_INFERENCE_BATCH_SIZE = 32
+DEFAULT_VOCAB_BIAS_UPPER = 0.0
+DEFAULT_VOCAB_BIAS_LOWER = 0.0
+DEFAULT_VOCAB_BIAS_DIGITS = -1.0
+DEFAULT_VOCAB_BIAS_SYMBOLS = -1.0
+DEFAULT_VOCAB_WHITELIST = ""
+DEFAULT_VOCAB_BLACKLIST = " \t\r\n"
+DEFAULT_DEVICE = "cuda"
+DEFAULT_USE_4BIT = True
+DEFAULT_LORA_R = 16
+DEFAULT_LORA_ALPHA = 32
+DEFAULT_SCHEDULE_STANDARD = [50, 50, 50, 50, 100, 100, 200, 200, 200, 200] + [500] * 6
+DEFAULT_SCHEDULE_FAST     = [50, 50, 50] + [50] * 13
+DEFAULT_SCHEDULE_SUPERFAST = [20, 20, 20] + [30] * 13
+DEFAULT_SCHEDULE_DEEP     = [100, 200, 500] + [2000] * 13
 
 # =============================================================================
 # AUTO-INITIALIZATION
