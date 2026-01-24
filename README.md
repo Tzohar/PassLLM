@@ -20,21 +20,37 @@ The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using 
 * **Pre-trained Weights:** Includes robust models pre-trained on millions of real-world records from major PII breaches (e.g., Post Millennial, ClixSense) combined with the COMB dataset.
 
 ## Use Guide
-**Tip:** You can run this tool instantly without any local installation by opening our [Google Colab Demo](https://colab.research.google.com/github/Tzohar/PassLLM/blob/main/PassLLM_Demo.ipynb), providing your target's PII, and simply executing each cell in order.
+> **Tip:** You can run this tool instantly without any local installation by opening our [Google Colab Demo](https://colab.research.google.com/github/Tzohar/PassLLM/blob/main/PassLLM_Demo.ipynb), providing your target's PII, and simply executing each cell in order.
 
-### Installation
+### Installation 
 * **Python:** 3.10+
-* **Password Guessing:** Runs on **Any Hardware**. A standard CPU or Mac (M1/M2) is sufficient to run the pre-trained model.
-* **Training:** NVIDIA GPU with CUDA (RTX 3090/4090 recommended, Google Colab's free tier is sufficient).
+* **Password Guessing:** Runs on **Any GPU**, Nvidia or AMD. A standard CPU or Mac (M1/M2) is also sufficient to run the pre-trained model.
+* **Training:** NVIDIA GPU with CUDA (RTX 3090/4090 recommended, Google Colab's free tier is often enough).
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/tzohar/PassLLM.git
-cd PassLLM
+   git clone [https://github.com/tzohar/PassLLM.git](https://github.com/tzohar/PassLLM.git)
+   cd PassLLM
 
-# 2. Install dependencies
-pip install torch torch-directml transformers peft datasets bitsandbytes accelerate 
+# 2. Install dependencies (Choose one)
+   # Option A: Install from requirements (Recommended)
+   pip install -r requirements.txt
+   
+   # Option B: Manual install
+   pip install torch torch-directml transformers peft datasets bitsandbytes accelerate gradio
+
 ```
+###  Configuration
+
+Once installed, adjust the settings in the WebUI or `src/config.py` to match your hardware.
+
+| Hardware | Device | 4-Bit Quantization | Torch DType | Batch Size |
+| --- | --- | --- | --- | --- |
+| **NVIDIA** | `cuda` | ✅ **On** (Recommended) | `bfloat16` | High (32+) |
+| **AMD** | `dml` | ❌ **Off** | `float16` | Low (4-8) |
+| **CPU** | `cpu` | ❌ **Off** | `float32` | Low (1-4) |
+
+> **Tip:** Don't forget to customize the **Min/Max Password Length**, **Character Bias** and **Epsilon** (search strictness) according to your specific target's needs!
 
 ### Password Guessing (Pre-Trained)
 
