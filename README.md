@@ -40,47 +40,68 @@ The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using 
    pip install torch torch-directml transformers peft datasets bitsandbytes accelerate gradio
 
 ```
-###  Configuration
 
-Once installed, adjust the settings in the WebUI or `src/config.py` to match your hardware.
+### Configuration
+   
+Download the [trained weights](https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth) (~160 MB) and place them in the `models/` directory.
+*Alternatively, via terminal:*
+```bash
+curl -L https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth -o models/PassLLM_LoRA_Weights.pth
+```
 
+   
+Once installed and downloaded, adjust the settings in the WebUI or `src/config.py` to match your hardware.
 | Hardware | Device | 4-Bit Quantization | Torch DType | Batch Size |
 | --- | --- | --- | --- | --- |
 | **NVIDIA** | `cuda` | ✅ **On** (Recommended) | `bfloat16` | High (32+) |
 | **AMD** | `dml` | ❌ **Off** | `float16` | Low (4-8) |
 | **CPU** | `cpu` | ❌ **Off** | `float32` | Low (1-4) |
 
-> **Tip:** Don't forget to customize the **Min/Max Password Length**, **Character Bias** and **Epsilon** (search strictness) according to your specific target's needs!
+> **Tip:** Don't forget to customize the **Min/Max Password Length**, **Character Bias**, and **Epsilon** (search strictness) according to your specific target's needs!
 
 ### Password Guessing (Pre-Trained)
 
-Use the pre-trained LoRA weights to guess passwords for a specific target based on their PII.
+You can use the graphical interface (WebUI) or the command line to generate candidates.
 
-1. Download the [trained weights](https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth) (~160 MB) and place them in the `models/` directory.
-   Alternatively, run this command in your terminal:
-   ```bash
-   curl -L https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_Weights.pth -o models/PassLLM_LoRA_Weights.pth
-   
-2.  Create a `target.jsonl` file in the main library. You can include any field defined in `schema_defaults` within `src/config.py` (e.g., middle names, cities, usernames).
-    ```json
-    {
-      "name": "Johan P.", 
-      "birth_year": "1966",
-      "email": "johan66@gmail.com",
-      "sister_pw": "Johan123"
-    }
-    ```
-    
-3.  **Run the inference engine:**
-    ```bash
-    python app.py --file target.jsonl --fast
-    ```
-    * `--file`: Path to your target PII file.
-    * `--fast`: Uses optimized, shallow beam search (omit for full deep search).
-    * `--superfast`: Very quick but inaccurate, mainly for testing purposes.
+#### Option A: WebUI (Recommended)
 
-An installation of ~15 GBs will commence. The model will generate a ranked list of candidates (sorted by probability) and save them to `/results`.
+1. **Launch the Interface:**
+```bash
+python webui.py
 
+```
+2. **Generate:**
+* Open the local URL (e.g., `http://127.0.0.1:7860`).
+* **Select Model:** Choose `PassLLM_LoRA_Weights.pth` from the dropdown.
+* **Enter PII:** Fill in the target's Name, Email, Birth Year, etc., into the form.
+* **Click Generate:** The engine will stream ranked candidates in real-time.
+
+
+#### Option B: Command Line (CLI)
+
+Best for automation or headless servers.
+
+1. **Create a Target File:**
+Create a `target.jsonl` file (or use the existing one) in the main folder. You can include any field defined in `src/config.py`.
+```json
+{
+  "name": "Johan P.", 
+  "birth_year": "1966",
+  "email": "johan66@gmail.com",
+  "sister_pw": "Johan123"
+}
+
+```
+
+2. **Run the Engine:**
+```bash
+python app.py --file target.jsonl --fast 
+
+```
+
+* `--file`: Path to your target PII file.
+* `--fast`: Uses optimized, shallow beam search (omit for full deep search).
+* `--superfast`: Very quick but less accurate, mainly for testing.
 ### Training From Databases
 
 To reproduce the paper's results or train on a new breach, you must provide a dataset of **PII-to-Password pairs**.
