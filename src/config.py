@@ -1,10 +1,6 @@
 import os
 import torch
-try:
-    import torch_directml
-    dml_available = True
-except ImportError:
-    dml_available = False
+import torch_directml
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,18 +36,13 @@ class Config:
     # qwen/Qwen2.5-0.5B is excellent for CPU/Consumer GPU, but mistralai/Mistral-7B-v0.1 is ideal and more powerful
     BASE_MODEL_ID = "mistralai/Mistral-7B-v0.1"    
 
-    # Automatically selects device; uses GPU if an NVIDIA GPU is available, otherwise falls back to CPU (slower)
-    if torch.cuda.is_available():
-        DEVICE = "cuda"
-    elif dml_available:
-        DEVICE = torch_directml.device() # This targets AMD devices via DirectML
-    else:
-        DEVICE = "cpu"
+    # Three options are available - "cuda" for Nvidia GPUs, "dml" for AMD GPUs, and "cpu" otherwise
+    device = "cuda"
 
     # 4-bit quantization to save VRAM (requires compatible GPU), disable for AMD/CPU-only setups
     # Must be enabled for Nvidia GPUs, otherwise performance will be poor
     USE_4BIT = True         
-    TORCH_DTYPE = torch.bfloat16 
+    TORCH_DTYPE = "bfloat16"
 
     # Reproducibility
     SEED = 42
@@ -107,13 +98,23 @@ class Config:
     # =========================================================================
     LEARNING_RATE = 2e-5
     NUM_EPOCHS = 1
-    TRAIN_BATCH_SIZE = 2           # Increase if VRAM allows, 6 is the max on free Google Colab 
-    GRAD_ACCUMULATION = 32   # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
     
-    # LoRA Specifics
-    LORA_R = 16              # Rank
-    LORA_ALPHA = 32          # Scaling, higher = more LoRA influence
+     # Increase if VRAM allows
+    TRAIN_BATCH_SIZE = 2          
+
+     # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
+    GRAD_ACCUMULATION = 32  
+    
+    
+    # Lora rank
+    LORA_R = 16 
+    
+    # Scaling, higher = more LoRA influence
+    LORA_ALPHA = 32
+
+    # Percent of training samples that would render as blank
     LORA_DROPOUT = 0.2
+    
     # Target modules for Qwen/Llama architectures
     LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
@@ -194,6 +195,7 @@ DEFAULT_VOCAB_BIAS_SYMBOLS = -1.0
 DEFAULT_VOCAB_WHITELIST = ""
 DEFAULT_VOCAB_BLACKLIST = ""
 DEFAULT_DEVICE = "cuda"
+DEFAULT_TORCH_DTYPE = "bfloat16"
 DEFAULT_USE_4BIT = True
 DEFAULT_LORA_R = 16
 DEFAULT_LORA_ALPHA = 32
