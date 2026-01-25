@@ -63,8 +63,14 @@ def main():
         checkpoint = torch.load(args.weights, map_location="cpu")
         model.load_state_dict(checkpoint, strict=False)
 
-        # Move model to the appropriate device after it's loaded
-        model.to(Config.DEVICE)
+         # Move model to the appropriate device after it's loaded
+        if Config.DEVICE == "dml":
+            import torch_directml
+            device = torch_directml.device()
+            print("Moving model to DirectML (AMD GPU)")
+            model.to(device)
+        else:
+            model.to(Config.DEVICE)    
 
         model.eval()
 
@@ -111,7 +117,7 @@ def main():
     safe_name = profile.get('name', 'target').replace(" ", "_")
     output_path = Config.RESULTS_DIR / f"guesses_{safe_name}.json"
 
-    print(f"\n[+] Saving {len(candidates)} candidates to: {output_path}")
+    
 
     output_data = []
     for cand in candidates:
@@ -132,6 +138,8 @@ def main():
     while output_path.exists():
         output_path = Config.RESULTS_DIR / f"guesses_{safe_name}_{counter}.json"
         counter += 1
+
+    print(f"\n[+] Saving {len(candidates)} candidates to: {output_path}")
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=4)
