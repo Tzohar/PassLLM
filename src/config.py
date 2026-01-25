@@ -37,7 +37,7 @@ class Config:
     BASE_MODEL_ID = "mistralai/Mistral-7B-v0.1"    
 
     # Three options are available - "cuda" for Nvidia GPUs, "dml" for AMD GPUs, and "cpu" otherwise
-    device = "cuda"
+    DEVICE = "cuda"
 
     # 4-bit quantization to save VRAM (requires compatible GPU), disable for AMD/CPU-only setups
     # Must be enabled for Nvidia GPUs, otherwise performance will be poor
