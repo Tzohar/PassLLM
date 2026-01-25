@@ -7,7 +7,7 @@ from src.config import Config
 def build_model():
     print(f"Loading Base Model: {Config.BASE_MODEL_ID}...")
 
-        dtype_map = {
+    dtype_map = {
         "float16": torch.float16,
         "bfloat16": torch.bfloat16,
         "float32": torch.float32
