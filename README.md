@@ -10,9 +10,9 @@
 **PassLLM is the world's most accurate targeted password guessing framework**, [outperforming other models by 15% to 45%](https://www.usenix.org/conference/usenixsecurity25/presentation/zou-yunkai) in most scenarios. It uses Personally Identifiable Information (PII) - such as _names, birthdays, phone numbers, emails and previous passwords_ - to predict the specific passwords a target is most likely to use. 
 The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using LoRA, enabling a private, high-accuracy framework that runs entirely on consumer PCs.
 
+ <img src="https://github.com/user-attachments/assets/9d0976f5-56d9-4b79-afa7-3224d7115c12" alt="PassLLM Demo" width="42%">
 
 ## Capabilities
- <img src="https://github.com/user-attachments/assets/9d0976f5-56d9-4b79-afa7-3224d7115c12" alt="PassLLM Demo" align="right" width="42%">
 
 * **State-of-the-Art Accuracy:** Achieves **+45% higher success rates** than leading benchmarks (RankGuess, TarGuess) in most scenarios.
 * **PII Inference:** With sufficient information, it successfully guesses **12.5% - 31.6%** of typical users within just **100 guesses**.
