@@ -1,6 +1,4 @@
 import os
-import torch
-import torch_directml
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
