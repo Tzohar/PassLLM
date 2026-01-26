@@ -150,14 +150,14 @@ $ python app.py --file target.jsonl --superfast
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-42.25%    | 123456       
-11.16%    | 888888           
-6.59%     | 1976mthorne     
-5.32%     | 88Marcus88
-5.28%     | 1234ABC
-3.78%     | 88Marcus!
-2.61%     | 1976Marcus
-... (85 passwords generated)
+0.42%     | 88888888       
+0.32%     | 12345678            
+0.16%     | 1976mthorne     
+0.15%     | 88marcus88
+0.15%     | 1234ABC
+0.15%     | 88Marcus!
+0.14%     | 1976Marcus
+... (227 passwords generated)
 ```
 
 
@@ -169,14 +169,14 @@ $ python app.py --file target.jsonl --fast
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-11.62%    | 123456       
-10.98%    | 19950404           
-10.03%    | 1qaz2wsx     
-5.29%     | 19951204
-4.50%     | 1995elena
-4.40%     | 111111
-4.19%     | 1995Rod
-... (428 passwords generated)
+1.82%     | 19950404       
+1.27%     | 19951204            
+0.88%     | 1995rodriguez      
+0.55%     | 19951204
+0.50%     | 11111111
+0.48%     | 1995Rodriguez
+0.45%     | 19951995
+... (338 passwords generated)
 ```
 
 
@@ -188,33 +188,33 @@ $ python app.py --file target.jsonl --fast
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-47.79%    | 01mamamia       
-28.30%    | 13rockm4n            
-3.74%     | 01Mamamia     
-2.36%     | 13mamamia
-1.87%     | 13rockm4n!
-1.73%     | 01mamamia!
-1.60%     | 123mamamia
-... (435 passwords generated)
+1.69%     | 01mamamia01       
+1.23%     | 13Rockm4n!            
+1.14%     | 01mamamia13     
+1.02%     | 13rockm4n01
+0.96%     | 01mamamia123
+0.93%     | 01mama1234
+0.77%     | 01mama12345
+... (288 passwords generated)
 ```
 
  
 `{"name": "Omar Al-Fayed", "birth_year": "1992", "birth_month": "05", "birth_day": "18", "username": "omar.fayed92", "email": "o.alfayed@business.ae", "address": "Villa 14, Palm Jumeirah", "phone": "+971-50-123-4567", "country": "UAE", "sister_pw": "Amira1235"}`:
 
 ```text
-$ python app.py --file target.jsonl --fast
+$ python app.py --file target.jsonl 
 
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-20.28%    | 123456 
-5.30%     | 1qaz2wsx             
-4.56%     | 123Fayed      
-3.40%     | 1OmarFayed 
-2.86%     | 1992Omar
-2.36%     | 1234ABC
-1.86%     | 1992amira
-... (3091 passwords generated)
+1.88%     | 1q2w3e4r
+1.59%     | 05181992        
+0.95%     | 12345678     
+0.66%     | 12345Fayed 
+0.50%     | 1OmarFayed92
+0.48%     | 1992OmarFayed
+0.43%     | 123456amira
+... (2865 passwords generated)
 ```
 ## Disclaimer
 
