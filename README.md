@@ -31,7 +31,7 @@ The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using 
 
 ```bash
 # 1. Clone the repository
-   git clone [https://github.com/tzohar/PassLLM.git](https://github.com/tzohar/PassLLM.git)
+   git clone https://github.com/tzohar/PassLLM.git
    cd PassLLM
 
 # 2. Install dependencies (Choose one)
