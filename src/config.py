@@ -47,6 +47,13 @@ class Config:
     # Reproducibility
     SEED = 42
 
+    # If true, shifts scores for stability, then ensures they sum to 1 (100%)
+    # Useful if you want to know "Which of THESE candidates is best?"
+    # If false, strictly converts log-space to probability-space: p = e^(log_p)
+    # These will likely be very small numbers and will NOT sum to 100%, 
+    # But will more accurately reflect the model's thinking process
+    NORMALIZE_PROBABILITIES = False
+
     # =========================================================================
     # 4. GENERATION ENGINE (INFERENCE)
     # =========================================================================
@@ -67,6 +74,8 @@ class Config:
     SCHEDULE_FAST     = [50, 50, 50] + [50] * 13
     SCHEDULE_SUPERFAST = [20, 20, 20] + [30] * 13
     SCHEDULE_DEEP     = [100, 200, 500] + [2000] * 13
+
+    # 
     
     # =========================================================================
     # 5 VOCABULARY & CHARACTER CONSTRAINTS
