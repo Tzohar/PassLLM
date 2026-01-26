@@ -367,17 +367,22 @@ def dynamic_beam_search(
         # Convert current beams into final candidates (they already have 'sequence' and 'score')
         final_candidates = [b for b in beams]
 
-    # Compute normalized probabilities (from log-scores -> probabilities)
     if len(final_candidates) > 0:
-        # Collect scores as tensor for numerical stability
+    
         scores = torch.tensor([c['score'] for c in final_candidates], device=model.device)
-        # Stabilize with max before exponentiating
-        scores = scores - torch.max(scores)
-        probs = torch.exp(scores)
-        probs = probs / torch.sum(probs)
-        # Attach probability (%) to each candidate
-        for i, c in enumerate(final_candidates):
-            c['probability'] = probs[i].item() * 100.0  # percentage
+    
+        # 2. Compute probabilities based on config
+        if Config.NORMALIZE_PROBABILITIES:
+            scores = scores - torch.max(scores)
+            probs = torch.exp(scores)
+            probs = probs / torch.sum(probs)
+        else:
+            probs = torch.exp(scores)
+
+    # 3. Attach probability (%) to each candidate (Common Step)
+    for i, c in enumerate(final_candidates):
+        c['probability'] = probs[i].item() * 100.0
+            
 
     # Sort again by score and return
     final_candidates.sort(key=lambda x: x['score'], reverse=True)
