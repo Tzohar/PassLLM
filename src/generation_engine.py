@@ -377,6 +377,7 @@ def dynamic_beam_search(
             probs = torch.exp(scores)
             probs = probs / torch.sum(probs)
         else:
+            scores = scores / 2
             probs = torch.exp(scores)
 
     # 3. Attach probability (%) to each candidate (Common Step)
