@@ -9,24 +9,15 @@ from src.config import Config
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="PassLLM Command Line Tool")
-    
     parser.add_argument("--file", type=str, default=None, required = True, help="Path to target.json file with PII")
-
-    # --- CONFIGURATION ---
     parser.add_argument("--weights", type=str, default="models/PassLLM_LoRA_Weights.pth", help="Path to model weights")
     parser.add_argument("--fast", action="store_true", help="Use fast mode (less accurate, quicker, for low-end GPUs)")
     parser.add_argument("--superfast", action="store_true", help="Use super fast mode (least accurate, quickest, for very low-end GPUs)")
-
-
     return parser.parse_args()
 
 def load_profile(args):
-    """
-    Loads PII from either the JSON file OR the Command Line arguments.
-    """
     profile = {}
 
-    # Priority 1: Load from JSON file
     if args.file:
         try:
             with open(args.file, 'r', encoding='utf-8') as f:
@@ -35,8 +26,7 @@ def load_profile(args):
         except Exception as e:
             print(f"[!] Error loading JSON: {e}")
             sys.exit(1)
-
-    # Validation
+            
     if not profile:
         print("[!] Error: No target information provided.")
         print("    Usage: python app.py --file target.json")
@@ -44,9 +34,7 @@ def load_profile(args):
 
     return profile
 
-
 def main():
-    # Handle our arguments
     args = parse_arguments()
     
     # Load our system (model + tokenizer)
@@ -55,15 +43,13 @@ def main():
         model, tokenizer = build_model()
         model = inject_lora_layers(model)
 
-        # Load the fine-tuned weights
-        # We're using the cpu map_location to ensure compatibility across devices
         print(f"Loading Weights from: {args.weights}...")
 
-        # Apply the weights to the model
+        # We're using the cpu map_location to ensure compatibility across devices
+        # We will later move the model to the device specified in config.py
         checkpoint = torch.load(args.weights, map_location="cpu")
         model.load_state_dict(checkpoint, strict=False)
 
-         # Move model to the appropriate device after it's loaded
         if Config.DEVICE == "dml":
             import torch_directml
             device = torch_directml.device()
@@ -78,7 +64,6 @@ def main():
         print(f"CRITICAL ERROR: Weights not found at {args.weights}")
         sys.exit(1)
 
-    # Setup the target profile
     profile = load_profile(args)
 
     if args.fast:
@@ -92,16 +77,15 @@ def main():
         print("[+] Mode: STANDARD (High accuracy)")
 
     print(f"\n[+] Target Locked: {profile['name']}")
-    print("[+] Cracking...")
+    print("[+] Guessing...")
 
-    # CALL THE LOGIC FILE
     candidates = predict_password(model, tokenizer, profile, beam_schedule=schedule)
 
     print(f"\n--- TOP GUESSES ---")
     print(f"{'CONFIDENCE':<12} | {'PASSWORD'}")
     print("-" * 30)
 
-    for cand in candidates[:100]: # Show top 100
+    for cand in candidates[:100]: # Show top 100, the rest will be logged in /results
         pwd = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
         # Prefer normalized percentage if generation attached it
         if 'probability' in cand:
@@ -113,18 +97,13 @@ def main():
             else:
                 print(f"{cand['score']:.4f} (log) | {pwd}")
 
-    # Construct filename: results/guesses_John.json
     safe_name = profile.get('name', 'target').replace(" ", "_")
     output_path = Config.RESULTS_DIR / f"guesses_{safe_name}.json"
 
-    
-
     output_data = []
-    for cand in candidates:
         # Decode the text
         text = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
         
-        # Calculate probability if not already there
         if 'probability' in cand:
             prob = cand['probability']
 
