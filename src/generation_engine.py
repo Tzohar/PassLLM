@@ -102,7 +102,7 @@ def dynamic_beam_search(
     """ 
 
 
-        if max_depth is None: max_depth = Config.MAX_PASSWORD_LENGTH
+    if max_depth is None: max_depth = Config.MAX_PASSWORD_LENGTH
     if beam_width_schedule is None: beam_width_schedule = Config.SCHEDULE_STANDARD
     if batch_size is None: batch_size = getattr(Config, "INFERENCE_BATCH_SIZE", 10)
     if epsilon is None: epsilon = getattr(Config, "EPSILON_END_PROB", 0.01)
