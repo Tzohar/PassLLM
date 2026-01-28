@@ -20,7 +20,7 @@ app_script_path = project_root / "app.py"
 
 file_lock = threading.Lock()
 
-## --- 1. CONFIG IMPORT & FACTORY DEFAULTS ---
+## --- CONFIG IMPORT & FACTORY DEFAULTS ---
 
 missing_files = []
 if not app_script_path.exists():
@@ -55,7 +55,6 @@ FACTORY_DEFAULTS = {}
 for key in dir(config):
     if key.startswith("DEFAULT_"):
         target_setting = key.replace("DEFAULT_", "")
-        # Only load defaults that actually map to a real setting in Config
         if hasattr(config.Config, target_setting):
             FACTORY_DEFAULTS[target_setting] = getattr(config, key)
 
@@ -65,7 +64,7 @@ else:
     print(f"✅ Loaded {len(FACTORY_DEFAULTS)} factory default settings.")
 print(f"✅ Config loaded from {config_file_path}")
 
-# --- 2. CONFIG READ/WRITE LOGIC ---
+# --- CONFIG READ/WRITE LOGIC ---
 
 def write_config_to_disk(key, value):
     if not config_file_path.exists(): 
@@ -153,11 +152,6 @@ def update_setting(key, value):
                     value = str(value)
 
             except (ValueError, TypeError) as e:
-                print(f"⚠️ Type casting failed for {key} (Expected {type(current_val).__name__}): {e}")
-                print("   ❌ Aborting save to prevent config corruption.")
-                return 
-
-            except (ValueError, TypeError) as e:
                 print(f"⚠️ Type casting failed for {key}: {e}. Keeping original type.")
                 pass
             
@@ -230,7 +224,7 @@ def reload_config_from_disk():
         print(f"❌ Error reloading config: {e}")
         return get_current_config_values()
     
-# --- 4. PII JSON LOGIC ---
+# --- PII JSON LOGIC ---
 
 BLANK_TEMPLATE = {
     "name": "", "birth_year": "", "birth_month": "", "birth_day": "",
@@ -238,7 +232,6 @@ BLANK_TEMPLATE = {
     "country": "", "sister_pw": ""
 }
 
-# In-Memory Cache to prevent constant disk reads
 pii_cache = None
 
 def read_pii_file():
@@ -254,7 +247,6 @@ def read_pii_file():
     try:
         with file_lock:
             with open(target_file_path, 'r', encoding='utf-8') as f:
-                # 2. Use json.load directly (Robust parsing)
                 data = json.load(f)
 
                 full_data = BLANK_TEMPLATE.copy()
@@ -356,7 +348,7 @@ def load_pii_to_ui():
         data.get("sister_pw", "")
     )
 
-# --- 8. EXECUTION CONTROL (Fixed JSON Keys & Removed Notes) ---
+# --- EXECUTION CONTROL ---
 
 current_process = None
 should_stop = False
@@ -481,7 +473,7 @@ def stop_inference():
     return "🛑 Stopping...", "Stopped"
 
 
-# --- 6. HELPERS ---
+# --- MISC HELPERS ---
 import os
 
 def scan_models():
@@ -539,7 +531,7 @@ def load_model_sim(model_name):
     except Exception as e:
         yield f"❌ Error: {str(e)}"
 
-# --- 7. UI CONSTRUCTION ---
+# --- UI CONSTRUCTION ---
 
 CUSTOM_CSS = """
 /* 1. Main Layout Tweaks */
@@ -660,8 +652,7 @@ def create_ui():
                         blacklist = gr.Textbox(value=config.Config.VOCAB_BLACKLIST, label="🚫 Blacklist", placeholder="\\n \\t", lines=1, info="Never allow.")
 
                 with gr.Accordion("🖥️ Hardware Acceleration", open=True, elem_id="hard_acc"):
-                    device = gr.Radio(["cuda", "cpu", "dml"], label="Compute Device", value=config.Config.DEVICE)
-                    # Choices must be simple strings to match the values returned by get_current_config_values
+                    device = gr.Radio(["cuda", "cpu", "dml"], label="Compute Device", value=config.Config.DEVICE)s
                     dtype = gr.Dropdown(choices=["float16", "bfloat16", "float32"], label="Torch Datatype", value=str(config.Config.TORCH_DTYPE).split('.')[-1] if 'torch' in str(config.Config.TORCH_DTYPE) else str(config.Config.TORCH_DTYPE))
                     use_4bit = gr.Checkbox(label="4-Bit Quantization", value=config.Config.USE_4BIT)
 
@@ -674,11 +665,9 @@ def create_ui():
             # --- RIGHT: PII INPUTS ---
             with gr.Column(scale=2):
                 
-                # 1. PII SECTION (Grouped & Compacted)
                 with gr.Group():
                     with gr.Row(elem_classes="tight-header"):
                          gr.HTML("<div class='section-header' title='Personal info used to customize the attack.'>🎯 Target Profile (PII)</div>")
-                         # pii_load_btn REMOVED FROM HERE
 
                     # Identity
                     with gr.Row(elem_classes="pii-row"):
@@ -696,31 +685,23 @@ def create_ui():
                         inp_month = gr.Textbox(label="📅 Month", placeholder="MM")
                         inp_day = gr.Textbox(label="📅 Day", placeholder="DD")
                     
-                    # Secrets
                     inp_sister = gr.Textbox(label="🔑 Sister Passwords", placeholder="pass1, pass2, pass3", info="Comma separated previous passwords.")
 
-                # 2. ACTION BUTTONS (Reorganized)
                 with gr.Row(variant="panel"):
                     pii_load_btn = gr.Button("📂 Read target.jsonl", variant="secondary", scale=1, elem_id="pii_load_btn") # MOVED HERE
                     clear_btn = gr.Button("🗑️ Clear", variant="secondary", scale=1)
-                    # Green Generate Button
                     gen_btn = gr.Button("🔮 Generate", variant="primary", scale=2)
-                    # Red Stop Button
                     stop_btn = gr.Button("🛑 Stop", variant="stop", scale=1)
 
-                # 3. RESULTS AREA (Reorganized)
-                # Status Indicator
                 result_status_markdown = gr.Markdown("### 📋 Results", visible=True)
                 run_status = gr.Label(value="Ready", label="Status", color="gray", show_label=False)
 
-                # Results Dataframe (At Bottom)
                 output_table = gr.Dataframe(
                     headers=["Rank", "Candidate", "Confidence"], 
                     datatype=["number", "str", "str"], 
                     interactive=False,
                 )
 
-                # Logs below results
                 with gr.Accordion("View Raw Logs", open=False):
                     console_log = gr.Markdown(value="*Ready...*")
 
@@ -804,5 +785,6 @@ def create_ui():
 
 if __name__ == "__main__":
     app, theme = create_ui()
+
 
     app.launch(theme=theme, css=CUSTOM_CSS)
