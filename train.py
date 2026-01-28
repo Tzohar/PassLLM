@@ -23,7 +23,6 @@ def freeze_parameters(model):
     Otherwise, if it does not belong to any LoRA layer - we will skip it.
     It will be frozen for the training process, allowing us to save MASSIVE amounts of resources rather than training parameters for every single layer...
     '''
-    
     print("Freezing Base Model Parameters...")
     frozen_count = 0
     lora_count = 0
@@ -43,7 +42,6 @@ def print_trainable_parameters(model):
     We'll sum the size of all parameters that require gradients, usually between 0.1% and 5% for certain models.
     And we'll also sum the total numbers of parameters available by the model (7 billion for Mistral, 0.5 billion for Qwen).
     '''
-
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     all_params = sum(p.numel() for p in model.parameters())
 
@@ -58,7 +56,6 @@ def format_and_mask(sample, tokenizer):
     Optimizing the loss over the ENTIRE sequence would inevitably expose the model to many potential vulnerabilities.
     We'll restrict the loss calculation only to the PASSWORD portion of the sequence. 
     '''
-    
     full_text = Config.get_formatted_input(
         pii_dict=sample['pii'], 
         target_password=sample['output']
@@ -120,7 +117,6 @@ def train_loop(model, tokenizer, dataloader):
     We'll implement a warmup gradient for pure stabilization during the early processing steps, as per the paper.
     And we're using an AdamW optimizer, although not specified by the paper.
     '''
-    
     print("Starting Training Loop...")
     global_step = 0
     num_training_steps = (len(dataloader) // Config.GRAD_ACCUMULATION) * Config.NUM_EPOCHS
@@ -175,12 +171,12 @@ def train_loop(model, tokenizer, dataloader):
     return model
 
 def save_model(model):
+    '''
+    We don't want to save the whole massive model with billions of parameters again
+    We only want to save the parameters named "lora_..."
+    '''
     print(f"Saving LoRA Weights to {Config.WEIGHTS_FILE}...")
-
-    # We don't want to save the whole massive model with billions of parameters again
-    # We only want to save the parameters named "lora_..."
     lora_state_dict = {k: v for k, v in model.state_dict().items() if "lora_" in k}
-
     torch.save(lora_state_dict, Config.WEIGHTS_FILE)
     print("Success!")
 
