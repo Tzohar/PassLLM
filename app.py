@@ -101,7 +101,7 @@ def main():
     output_path = Config.RESULTS_DIR / f"guesses_{safe_name}.json"
 
     output_data = []
-        # Decode the text
+    for cand in candidates:
         text = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
         
         if 'probability' in cand:
