@@ -652,7 +652,7 @@ def create_ui():
                         blacklist = gr.Textbox(value=config.Config.VOCAB_BLACKLIST, label="🚫 Blacklist", placeholder="\\n \\t", lines=1, info="Never allow.")
 
                 with gr.Accordion("🖥️ Hardware Acceleration", open=True, elem_id="hard_acc"):
-                    device = gr.Radio(["cuda", "cpu", "dml"], label="Compute Device", value=config.Config.DEVICE)s
+                    device = gr.Radio(["cuda", "cpu", "dml"], label="Compute Device", value=config.Config.DEVICE)
                     dtype = gr.Dropdown(choices=["float16", "bfloat16", "float32"], label="Torch Datatype", value=str(config.Config.TORCH_DTYPE).split('.')[-1] if 'torch' in str(config.Config.TORCH_DTYPE) else str(config.Config.TORCH_DTYPE))
                     use_4bit = gr.Checkbox(label="4-Bit Quantization", value=config.Config.USE_4BIT)
 
@@ -788,3 +788,4 @@ if __name__ == "__main__":
 
 
     app.launch(theme=theme, css=CUSTOM_CSS)
+
