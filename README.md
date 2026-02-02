@@ -39,7 +39,7 @@ The model fine-tunes 7B+ parameter LLMs on millions of leaked PII records using 
    pip install -r requirements.txt
    
    # Option B: Manual install
-   pip install torch torch-directml transformers peft datasets bitsandbytes accelerate gradio
+   pip install torch torch-directml "transformers<5.0.0" peft datasets bitsandbytes accelerate gradio
 
 ```
 
