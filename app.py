@@ -10,7 +10,7 @@ from src.config import Config
 def parse_arguments():
     parser = argparse.ArgumentParser(description="PassLLM Command Line Tool")
     parser.add_argument("--file", type=str, default=None, required = True, help="Path to target.json file with PII")
-    parser.add_argument("--weights", type=str, default="models/PassLLM_LoRA_Weights.pth", help="Path to model weights")
+    parser.add_argument("--weights", type=str, default=None, help="Path to model weights (default: from config)")
     parser.add_argument("--fast", action="store_true", help="Use fast mode (less accurate, quicker, for low-end GPUs)")
     parser.add_argument("--superfast", action="store_true", help="Use super fast mode (least accurate, quickest, for very low-end GPUs)")
     return parser.parse_args()
@@ -43,25 +43,17 @@ def main():
         model, tokenizer = build_model()
         model = inject_lora_layers(model)
 
-        print(f"Loading Weights from: {args.weights}...")
+        weights_path = args.weights if args.weights else Config.WEIGHTS_FILE
+        print(f"Loading Weights from: {weights_path}...")
 
         # We're using the cpu map_location to ensure compatibility across devices
-        # We will later move the model to the device specified in config.py
-        checkpoint = torch.load(args.weights, map_location="cpu")
-        model.load_state_dict(checkpoint, strict=False)
-
-        if Config.DEVICE == "dml":
-            import torch_directml
-            device = torch_directml.device()
-            print("Moving model to DirectML (AMD GPU)")
-            model.to(device)
-        else:
-            model.to(Config.DEVICE)    
+        checkpoint = torch.load(weights_path, map_location="cpu")
+        model.load_state_dict(checkpoint, strict=False)    
 
         model.eval()
 
     except FileNotFoundError:
-        print(f"CRITICAL ERROR: Weights not found at {args.weights}")
+        print(f"CRITICAL ERROR: Weights not found at {weights_path}")
         sys.exit(1)
 
     profile = load_profile(args)

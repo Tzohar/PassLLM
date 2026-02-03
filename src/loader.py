@@ -29,9 +29,16 @@ def build_model():
         quantization_config = None
 
     # We load the model from HuggingFace with the specified device and dtype
+    # Use device_map="auto" to load directly to GPU (avoids CPU RAM OOM on large models)
+    # For DirectML (Windows AMD), we must load to CPU first then move manually
+    if Config.DEVICE == "dml":
+        device_map = None
+    else:
+        device_map = "auto"
+
     model = AutoModelForCausalLM.from_pretrained(
         Config.BASE_MODEL_ID,
-        device_map=None, # We will move it to the correct device later
+        device_map=device_map,
         dtype=target_dtype,
         quantization_config=quantization_config,
     )
@@ -43,6 +50,13 @@ def build_model():
     # We set it to EOS (End of Sequence) so training doesn't crash
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+
+    # Move model to the correct device (only needed for DirectML, others use device_map="auto")
+    if Config.DEVICE == "dml":
+        import torch_directml
+        device = torch_directml.device()
+        print(f"Moving model to DirectML (AMD GPU)")
+        model.to(device)
     
     return model, tokenizer
 
