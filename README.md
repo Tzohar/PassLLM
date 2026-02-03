@@ -53,11 +53,15 @@ curl -L https://github.com/Tzohar/PassLLM/releases/download/v1.0.0/PassLLM_LoRA_
 
    
 Once installed and downloaded, adjust the settings in the WebUI or `src/config.py` to match your hardware.
-| Hardware | Device | 4-Bit Quantization | Torch DType | Batch Size |
-| --- | --- | --- | --- | --- |
-| **NVIDIA** | `cuda` | ✅ **On** (Recommended) | `bfloat16` | High (32+) |
-| **AMD** | `dml` | ❌ **Off** | `float16` | Low (4-8) |
-| **CPU** | `cpu` | ❌ **Off** | `float32` | Low (1-4) |
+| Hardware | OS | Device | 4-Bit Quantization | Torch DType | Batch Size |
+| --- | --- | --- | --- | --- | --- |
+| **NVIDIA** | Any | `cuda` | ✅ **On** (Recommended) | `bfloat16` | High (32+) |
+| **AMD** | Windows | `dml` | ❌ **Off** | `float16` | Low (4-8) |
+| **AMD (RDNA 3+)** | Linux/WSL | `cuda` | ❌ **Off** | `bfloat16` | Medium (8-16) |
+| **AMD (Older)** | Linux/WSL | `cuda` | ❌ **Off** | `float16` | Low (4-8) |
+| **CPU** | Any | `cpu` | ❌ **Off** | `float32` | Low (1-4) |
+
+> **Note (AMD on Linux/WSL):** DirectML (`dml`) is Windows-only. For AMD GPUs on Linux or WSL, you must install [ROCm](https://rocm.docs.amd.com/) and [PyTorch for ROCm](https://pytorch.org/get-started/locally/). Once installed, set `DEVICE = "cuda"` as ROCm uses the CUDA API. 4-bit quantization (bitsandbytes) is not officially supported on ROCm. Newer AMD GPUs (RDNA 3 / RX 7000 series, MI200/MI300) have native `bfloat16` support, use it for significant speed improvements.
 
 > **Tip:** Don't forget to customize the **Min/Max Password Length**, **Character Bias**, and **Epsilon** (search strictness) according to your specific target's needs!
 

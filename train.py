@@ -187,14 +187,11 @@ if __name__ == "__main__":
     model = inject_lora_layers(model)
     # 3. Freeze
     model = freeze_parameters(model)
-    # Set padding token if missing
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
     # 4. Verify
     print_trainable_parameters(model)
-    # 5. Prepare Data
+    # 6. Prepare Data
     dataloader = prepare_data(tokenizer)
-    # 6. Train
+    # 7. Train
     model = train_loop(model, tokenizer, dataloader)
-    # 7. Save
+    # 8. Save
     save_model(model)
