@@ -62,7 +62,8 @@ def format_and_mask(sample, tokenizer):
     )
     full_text += tokenizer.eos_token
 
-    encodings = tokenizer(full_text, truncation=True, padding='max_length', max_length=512)
+    max_len = getattr(Config, 'MAX_SEQ_LENGTH', 512)
+    encodings = tokenizer(full_text, truncation=True, padding='max_length', max_length=max_len)
 
     # Initially, the labels are identical to the input
     input_ids = encodings['input_ids']
@@ -75,7 +76,7 @@ def format_and_mask(sample, tokenizer):
         target_password=None  
     )
     
-    prompt_ids = tokenizer(prompt_text, truncation=True, max_length=512)["input_ids"]
+    prompt_ids = tokenizer(prompt_text, truncation=True, max_length=max_len)["input_ids"]
     prompt_len = len(prompt_ids)
 
     # Setting a label to -100 means "Ignore this"
@@ -181,17 +182,21 @@ def save_model(model):
     print("Success!")
 
 if __name__ == "__main__":
-    # 1. Build
+    # Build
     model, tokenizer = build_model()
-    # 2. Inject
+    # Inject
     model = inject_lora_layers(model)
-    # 3. Freeze
+    # Freeze
     model = freeze_parameters(model)
-    # 4. Verify
+    # Enable gradient checkpointing A
+    if getattr(Config, 'USE_GRADIENT_CHECKPOINTING', False):
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        print("Gradient checkpointing enabled (saves VRAM)")
+    # Verify
     print_trainable_parameters(model)
-    # 6. Prepare Data
+    # Prepare Data
     dataloader = prepare_data(tokenizer)
-    # 7. Train
+    # Train
     model = train_loop(model, tokenizer, dataloader)
-    # 8. Save
+    # Save
     save_model(model)
