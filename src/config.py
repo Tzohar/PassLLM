@@ -72,8 +72,6 @@ class Config:
     SCHEDULE_FAST     = [50, 50, 50] + [50] * 13
     SCHEDULE_SUPERFAST = [20, 20, 20] + [30] * 13
     SCHEDULE_DEEP     = [100, 200, 500] + [2000] * 13
-
-    # 
     
     # =========================================================================
     # 5 VOCABULARY & CHARACTER CONSTRAINTS
@@ -111,7 +109,19 @@ class Config:
 
      # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
     GRAD_ACCUMULATION = 32  
+
+    # Max sequence length for training (reduce to save VRAM)
+    # Recommended values:
+    #   512  = Full context, best quality (24GB+ VRAM)
+    #   256  = Good balance for 16GB GPUs (default)
+    #   128  = Minimum for password data, may truncate long PII inputs (12GB or less)
+    # Note: Must be >= MAX_PASSWORD_LENGTH + typical PII prompt length (~100 tokens, depending on formatting and fields)
+    MAX_SEQ_LENGTH = 512
     
+    # Enable gradient checkpointing to save VRAM (trades compute for memory)
+    # True = Saves ~3-5GB VRAM, but ~20-30% slower training (use for <=16GB GPUs)
+    # False = Faster training, but requires more VRAM (use for 24GB+ GPUs)
+    USE_GRADIENT_CHECKPOINTING = True  
     
     # Lora rank
     LORA_R = 16 
