@@ -39,8 +39,8 @@ def build_model():
     model = AutoModelForCausalLM.from_pretrained(
         Config.BASE_MODEL_ID,
         device_map=device_map,
-        dtype=target_dtype,
-        quantization_config=quantization_config,
+        torch_dtype=target_dtype,
+        quantization_config=quantization_config
     )
 
     # This loads the dictionary that turns "password" into numbers
