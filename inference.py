@@ -67,7 +67,6 @@ def predict_password(model, tokenizer, target_profile, max_depth=16, beam_schedu
 
         prompt_text = Config.get_formatted_input(profile_partial, tokenizer=tokenizer)
         input_ids = tokenizer(prompt_text, return_tensors="pt")["input_ids"].to(model.device)
-        print(prompt_text)  
         candidates = dynamic_beam_search(
             model=model,
             tokenizer=tokenizer,
