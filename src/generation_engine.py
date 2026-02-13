@@ -65,6 +65,7 @@ def dynamic_beam_search(
     beam_width_schedule: List[int] = None, 
     batch_size: int = None, 
     epsilon: float = None,
+    score_penalty: float = 0.0
 ):
     """
     Implements 'Algorithm 2: Dynamic Beam Search' from the paper
@@ -99,6 +100,10 @@ def dynamic_beam_search(
     7. epsilon (ε):
        The 'EOS Threshold'. A sequence is forcibly ended 
        only if the model's predicted Pr(EOS) > ε'. 
+
+    8. score_penalty:
+       A small penalty added to the score of candidates at each step,
+       to slightly favor earlier candidates in the beam search.
     """ 
 
     if max_depth is None: max_depth = Config.MAX_PASSWORD_LENGTH
@@ -304,6 +309,7 @@ def dynamic_beam_search(
     if len(final_candidates) > 0:
         scores = torch.tensor([c['score'] for c in final_candidates], device=model.device)
     
+        scores = scores - score_penalty 
         if Config.NORMALIZE_PROBABILITIES:
             scores = scores - torch.max(scores)
             probs = torch.exp(scores)
@@ -316,7 +322,7 @@ def dynamic_beam_search(
         new_c = {
             'password': tokenizer.decode(c['sequence'], skip_special_tokens=True),
             'probability': max(probs[i].item() * 100.0, 0.0001), 
-            'score': c['score'],
+            'score': scores[i].item()
         }
         final_candidates[i] = new_c
 
