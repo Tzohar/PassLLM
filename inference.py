@@ -72,7 +72,8 @@ def predict_password(model, tokenizer, target_profile, max_depth=16, beam_schedu
             tokenizer=tokenizer,
             auxiliary_info_ids=input_ids,
             max_depth=max_depth,
-            beam_width_schedule=beam_schedule
+            beam_width_schedule=beam_schedule,
+            score_penalty=progress * 0.5
         )
         all_candidates.extend(candidates)
 
