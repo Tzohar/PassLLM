@@ -78,7 +78,7 @@ class Config:
     INFERENCE_NUM_RUNS = 50
 
     # Fraction of fields to keep per run (gradually increases randomness and diversity, but may reduce accuracy if too low)
-    INFERENCE_KEEP_RATIO = 0.6
+    INFERENCE_KEEP_RATIO = 0.5
     
     # =========================================================================
     # 5 VOCABULARY & CHARACTER CONSTRAINTS
@@ -134,7 +134,7 @@ class Config:
     LORA_R = 16
     
     # Scaling, higher = more LoRA influence
-    LORA_ALPHA = 32
+    LORA_ALPHA = 28
 
     # Percent of training samples that would render as blank
     LORA_DROPOUT = 0.2
@@ -253,7 +253,7 @@ DEFAULT_LORA_R = 16
 DEFAULT_LORA_ALPHA = 32
 DEFAULT_CHECKPOINT_EVERY_STEPS = 100
 DEFAULT_USE_GRADIENT_CHECKPOINTING = True
-DEFAULT_INFERENCE_KEEP_RATIO = 0.6
+DEFAULT_INFERENCE_KEEP_RATIO = 0.5
 DEFAULT_NORMALIZE_PROBABILITIES = False
 DEFAULT_INFERENCE_NUM_RUNS = 50
 # =============================================================================
