@@ -42,7 +42,7 @@ def predict_password(model, tokenizer, target_profile, max_depth=16, beam_schedu
 
         for main_field, variant_field, prob in Config.field_variations:
             if random.random() < prob:
-                if main_field in new_profile and variant_field in new_profile:
+                if variant_field in new_profile:
                     new_profile[main_field] = new_profile[variant_field]
 
         for existing_field in list(new_profile.keys()):
