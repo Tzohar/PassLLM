@@ -59,7 +59,7 @@ class Config:
     MIN_PASSWORD_LENGTH = 6
 
     # Minimum probability for <EOS> to consider password complete
-    EPSILON_END_PROB = 0.25
+    EPSILON_END_PROB = 0.3
 
     # Batch size for inference (number of passwords to generate in parallel)
     # Lower values reduce VRAM usage but may slow generation
@@ -78,7 +78,7 @@ class Config:
     INFERENCE_NUM_RUNS = 50
 
     # Fraction of fields to keep per run (gradually increases randomness and diversity, but may reduce accuracy if too low)
-    INFERENCE_KEEP_RATIO = 0.5
+    INFERENCE_KEEP_RATIO = 0.6
     
     # =========================================================================
     # 5 VOCABULARY & CHARACTER CONSTRAINTS
@@ -238,7 +238,7 @@ class Config:
 # --- FACTORY DEFAULTS (DO NOT EDIT MANUALLY) ---
 DEFAULT_MIN_PASSWORD_LENGTH = 6
 DEFAULT_MAX_PASSWORD_LENGTH = 16
-DEFAULT_EPSILON_END_PROB = 0.25
+DEFAULT_EPSILON_END_PROB = 0.3
 DEFAULT_INFERENCE_BATCH_SIZE = 64
 DEFAULT_VOCAB_BIAS_UPPER = 0.0
 DEFAULT_VOCAB_BIAS_LOWER = 0.0
@@ -253,7 +253,7 @@ DEFAULT_LORA_R = 16
 DEFAULT_LORA_ALPHA = 32
 DEFAULT_CHECKPOINT_EVERY_STEPS = 100
 DEFAULT_USE_GRADIENT_CHECKPOINTING = True
-DEFAULT_INFERENCE_KEEP_RATIO = 0.5
+DEFAULT_INFERENCE_KEEP_RATIO = 0.6
 DEFAULT_NORMALIZE_PROBABILITIES = False
 DEFAULT_INFERENCE_NUM_RUNS = 50
 # =============================================================================
