@@ -4,3 +4,5 @@ __pycache__/
 *.tar.gz
 *.log
 results/
+*.pdf*
+models/checkpoints/

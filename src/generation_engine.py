@@ -5,6 +5,8 @@ from typing import List, Tuple, Dict
 from transformers.cache_utils import DynamicCache
 from src.config import Config
 import math
+import copy
+import random
 
 # Key: (vocab_size, device_str) -> Value: mask_tensor
 _MASK_CACHE = {}
@@ -19,8 +21,6 @@ def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
     bias_key = (Config.VOCAB_BIAS_UPPER, Config.VOCAB_BIAS_LOWER, Config.VOCAB_BIAS_DIGITS, Config.VOCAB_BIAS_SYMBOLS)
     cache_key = (true_vocab_size, str(device), bias_key)
     if cache_key in _MASK_CACHE: return _MASK_CACHE[cache_key]
-
-    print(f"[System] Scanning vocabulary with biases: Digits={Config.VOCAB_BIAS_DIGITS}, Symbols={Config.VOCAB_BIAS_SYMBOLS}...")
 
     s_upper = Config.VOCAB_BIAS_UPPER
     s_lower = Config.VOCAB_BIAS_LOWER
@@ -64,7 +64,7 @@ def dynamic_beam_search(
     max_depth: int = None, 
     beam_width_schedule: List[int] = None, 
     batch_size: int = None, 
-    epsilon: float = None
+    epsilon: float = None,
 ):
     """
     Implements 'Algorithm 2: Dynamic Beam Search' from the paper
@@ -83,7 +83,7 @@ def dynamic_beam_search(
        
     3. auxiliary_info_ids (INFO): 
        The encoded PII (Name, Birth Year, Sister Password). 
-       
+
     4. max_depth (m):
        How long can the password be? (e.g., 16 chars), 'maximum depth of generation'. 
        
@@ -101,14 +101,11 @@ def dynamic_beam_search(
        only if the model's predicted Pr(EOS) > ε'. 
     """ 
 
-
     if max_depth is None: max_depth = Config.MAX_PASSWORD_LENGTH
     if beam_width_schedule is None: beam_width_schedule = Config.SCHEDULE_STANDARD
     if batch_size is None: batch_size = getattr(Config, "INFERENCE_BATCH_SIZE", 10)
     if epsilon is None: epsilon = getattr(Config, "EPSILON_END_PROB", 0.01)
-    print(2)
 
-    # --- THE KV CACHE OPTIMIZATION ---
     # Tells PyTorch we are in inference mode (saves memory due to no gradients)
     with torch.no_grad():
         outputs = model(
@@ -128,11 +125,10 @@ def dynamic_beam_search(
         # But since we have only provided PII, the model's next token is the FIRST char of the password
         next_token_logits = outputs.logits[:, -1, :]
 
-    # --- INITIALIZE CANDIDATES ---
     model_vocab_size = next_token_logits.shape[-1]
     alphanumeric_mask = get_alphanumeric_mask(tokenizer, model_vocab_size, model.device)
 
-    # Move logits to CPU for processing (saves GPU memory and ensures compatibility)
+    # Move logits to CPU for processing (saves GPU memory and ensures compatibility for AMD users)
     logits_cpu = next_token_logits.cpu()
     logits_cpu = logits_cpu + alphanumeric_mask.cpu()
 
@@ -160,17 +156,11 @@ def dynamic_beam_search(
             'finished': False
         })
         
-    print(f"Initialized {len(beams)} beams based on PII.")
-
-    # --- THE MAIN SEARCH LOOP ---
-    ## This is where the code loops from depth=1 to max_depth (e.g., 16 characters),
-    ## generating one character at a time
+    #print(f"Initialized {len(beams)} beams based on PII.")
 
     final_candidates = []
 
     for depth in range(max_depth):
-        print(f"Depth {depth+1}/{max_depth} with {len(beams)} beams.")
-
         # At depth 0, we might keep 50. At depth 5, we might keep 1000
         # If no schedule is provided, we default to keeping 100 candidates
         current_beam_width = beam_width_schedule[depth] if beam_width_schedule else 100
@@ -181,12 +171,6 @@ def dynamic_beam_search(
         active_beams = beams[:current_beam_width]     
 
         new_beams = []       
-
-        # --- THE BATCHING MECHANISM (Solving VRAM Crashes) ---
-        # This is the "Safety Valve" described in the paper.
-        # If active_beams has 1,000 candidates, 
-        # and batch_size is 10, we process 100 loops of 10
-        # This prevents the GPU memory from spiking
 
         for i in range(0, len(active_beams), batch_size):
             batch_candidates = active_beams[i : i + batch_size]
@@ -223,7 +207,6 @@ def dynamic_beam_search(
 
                     expanded_cache.update(k_combined, v_combined, layer_idx)
 
-            # --- PREPARE INPUT ---
             # We feed the LAST character of each candidate
             batch_input_ids = torch.tensor(
                 [[b['sequence'][-1]] for b in batch_candidates], 
@@ -248,24 +231,19 @@ def dynamic_beam_search(
             vocab_probs = vocab_probs.to(model.device)
             vocab_ids = vocab_ids.to(model.device)
 
-            # --- THE EPSILON THRESHOLD ---
 
             # Check EOS Probability for each candidate in this batch
-            # We assume tokenizer.eos_token_id is the ID for "End of Sequence"
-            # eos_probs is basically Pr(EOS) for each candidate, forming a vector of size (batch_size,)
             eos_id = tokenizer.eos_token_id
             eos_probs = next_token_probs_cpu[:, eos_id] # Shape: (batch_size,)
 
-            # Identify which candidates WANT to stop and ARE ALLOWED to stop
             # Condition A: The model predicts EOS is likely (Implicit in beam search)
             # Condition B: The probability is explicitly > epsilon (The Paper's Fix)
-            # We create a boolean mask for candidates that meet the threshold
             has_high_eos_prob = eos_probs > epsilon
             vocab_probs, vocab_ids = torch.topk(next_token_probs_cpu, k=current_beam_width, dim=-1)
             new_kv_cache = outputs.past_key_values
 
             for batch_idx, candidate in enumerate(batch_candidates):
-                # --- CHECK FOR STOPPING ---
+
                 # We subtract 1 from len() if the tokenizer adds a start token, 
                 # but usually just checking len() >= 8 is safe
                 is_long_enough = len(candidate['sequence']) >= getattr(Config, "MIN_PASSWORD_LENGTH", 4)
@@ -278,8 +256,6 @@ def dynamic_beam_search(
                     finished_candidate['score'] += torch.log(eos_probs[batch_idx]).item()
                     final_candidates.append(finished_candidate)
 
-
-                # --- EXTRACT CACHE FOR THIS SPECIFIC CANDIDATE ---
                 # We create a lightweight tuple structure for the next iteration to read
                 # We assume the cache has L layers. We slice the batch_idx for each layer.
                 candidate_next_cache = []
@@ -293,9 +269,6 @@ def dynamic_beam_search(
                     
                     candidate_next_cache.append((k_slice, v_slice))
 
-
-
-                # --- EXPANDING ---
                 # Even if we stopped, we ALSO continue expanding (in case the password is longer)
                 # We loop through the top-K likely next characters
                 for k in range(current_beam_width):
@@ -313,25 +286,22 @@ def dynamic_beam_search(
                     }
                     new_beams.append(new_beam)
 
-        # --- SMERGE & PRUNE ---
-        # We have processed all batches. 'new_beams' now has thousands of candidates.
-        # We must prune it down to K[i+1] for the next depth.
-        
-        # Sort by score (highest probability first)
+        valid_beams = []
+        for b in new_beams:
+            decoded_text = tokenizer.decode(b['sequence'], skip_special_tokens=True)
+            if len(decoded_text) <= max_depth:
+                valid_beams.append(b)
+        new_beams = valid_beams
+
         new_beams.sort(key=lambda x: x['score'], reverse=True)
         next_width = beam_width_schedule[depth+1] if (beam_width_schedule and depth+1 < len(beam_width_schedule)) else 100
         beams = new_beams[:next_width]
         
-        print(f"Depth {depth}: Kept {len(beams)} candidates. Found {len(final_candidates)} finished passwords.")
 
-    # --- FINAL RETURN ---
-    # If we didn't find any 'finished' candidates, fall back to the current beam set
     if len(final_candidates) == 0 and len(beams) > 0:
-        # Convert current beams into final candidates (they already have 'sequence' and 'score')
         final_candidates = [b for b in beams]
 
     if len(final_candidates) > 0:
-    
         scores = torch.tensor([c['score'] for c in final_candidates], device=model.device)
     
         if Config.NORMALIZE_PROBABILITIES:
@@ -339,13 +309,16 @@ def dynamic_beam_search(
             probs = torch.exp(scores)
             probs = probs / torch.sum(probs)
         else:
-            scores = scores / 2
+            scores = scores / 1.5
             probs = torch.exp(scores)
 
     for i, c in enumerate(final_candidates):
-        c['probability'] = probs[i].item() * 100.0
-            
+        new_c = {
+            'password': tokenizer.decode(c['sequence'], skip_special_tokens=True),
+            'probability': max(probs[i].item() * 100.0, 0.0001), 
+            'score': c['score'],
+        }
+        final_candidates[i] = new_c
 
-    # Sort again by score and return
     final_candidates.sort(key=lambda x: x['score'], reverse=True)
     return final_candidates

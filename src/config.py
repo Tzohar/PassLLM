@@ -31,15 +31,15 @@ class Config:
     # =========================================================================
     # 3. MODEL ARCHITECTURE & HARDWARE
     # =========================================================================
-    # qwen/Qwen2.5-0.5B is excellent for CPU/Consumer GPU, but mistralai/Mistral-7B-v0.1 is ideal and more powerful
-    BASE_MODEL_ID = "mistralai/Mistral-7B-v0.1"    
+    # Qwen/Qwen3-4B-Instruct-2507
+    BASE_MODEL_ID = "Qwen/Qwen3-4B-Instruct-2507"    
 
     # Three options are available - "cuda" for Nvidia GPUs, "dml" for AMD GPUs, and "cpu" otherwise
     DEVICE = "cuda"
 
     # 4-bit quantization to save VRAM (requires compatible GPU), disable for AMD/CPU-only setups
     # Must be enabled for Nvidia GPUs, otherwise performance will be poor
-    USE_4BIT = True         
+    USE_4BIT = False         
     TORCH_DTYPE = "bfloat16"
 
     # Reproducibility
@@ -56,22 +56,29 @@ class Config:
     # 4. GENERATION ENGINE (INFERENCE)
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
-    MIN_PASSWORD_LENGTH = 8
+    MIN_PASSWORD_LENGTH = 6
 
     # Minimum probability for <EOS> to consider password complete
-    EPSILON_END_PROB = 0.3  
+    EPSILON_END_PROB = 0.25
 
     # Batch size for inference (number of passwords to generate in parallel)
     # Lower values reduce VRAM usage but may slow generation
     # Nvidia GPUs can typically handle higher batch sizes than AMD/CPU, because 4-bit quantization is only supported on Nvidia
-    INFERENCE_BATCH_SIZE = 32
+    INFERENCE_BATCH_SIZE = 64
     
     # Beam Search Schedules (Dynamic Beam Widths)
     # [Start Small] -> [Ramp Up] -> [Full Width]
-    SCHEDULE_STANDARD = [50, 50, 50, 50, 100, 100, 200, 200, 200, 200] + [500] * 6
-    SCHEDULE_FAST     = [50, 50, 50] + [50] * 13
-    SCHEDULE_SUPERFAST = [20, 20, 20] + [30] * 13
-    SCHEDULE_DEEP     = [100, 200, 500] + [2000] * 13
+    SCHEDULE_SUPERFAST = [50, 20, 20, 30, 30, 30, 30, 30, 30, 30, 30] + [50] * 100
+    SCHEDULE_FAST     = [100, 50, 50, 50, 50, 50, 100, 100, 100, 100, 100] + [200] * 100
+    SCHEDULE_STANDARD = [200, 100, 100, 100, 100, 100, 200, 200, 200, 200, 200, 200] + [500] * 100
+    SCHEDULE_DEEP     = [500, 200, 200, 500, 500, 1000, 1000, 1000, 1000] + [2000] * 1000
+
+    # Number of inference runs with random field dropout
+    # Multiple runs with different random subsets of PII can help generate more diverse candidates, but will increase inference time.
+    INFERENCE_NUM_RUNS = 100
+
+    # Fraction of fields to keep per run (gradually increases randomness and diversity, but may reduce accuracy if too low)
+    INFERENCE_KEEP_RATIO = 0.5
     
     # =========================================================================
     # 5 VOCABULARY & CHARACTER CONSTRAINTS
@@ -84,8 +91,8 @@ class Config:
     # +2.0   = Boost (Encourage this)  
     VOCAB_BIAS_UPPER = 0.0     
     VOCAB_BIAS_LOWER = 0.0     
-    VOCAB_BIAS_DIGITS = -1.0   
-    VOCAB_BIAS_SYMBOLS = -1.0  
+    VOCAB_BIAS_DIGITS = 0.0   
+    VOCAB_BIAS_SYMBOLS = 0.0
     
     # Overrides (applied on TOP of any rules above) 
     # Add specific characters here to whitelist them even if their category is disabled.
@@ -101,22 +108,22 @@ class Config:
     # =========================================================================
     # 6. TRAINING HYPERPARAMETERS (LoRA)
     # =========================================================================
-    LEARNING_RATE = 2e-5
-    NUM_EPOCHS = 1
+    LEARNING_RATE = 2e-4
+    NUM_EPOCHS = 3
     
-     # Increase if VRAM allows
-    TRAIN_BATCH_SIZE = 2          
+    # Reduce for lower VRAM (16GB AMD GPU without 4-bit)
+    TRAIN_BATCH_SIZE = 4     
 
-     # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
-    GRAD_ACCUMULATION = 32  
-
+    # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
+    GRAD_ACCUMULATION = 16
+    
     # Max sequence length for training (reduce to save VRAM)
     # Recommended values:
     #   512  = Full context, best quality (24GB+ VRAM)
     #   256  = Good balance for 16GB GPUs (default)
     #   128  = Minimum for password data, may truncate long PII inputs (12GB or less)
     # Note: Must be >= MAX_PASSWORD_LENGTH + typical PII prompt length (~100 tokens, depending on formatting and fields)
-    MAX_SEQ_LENGTH = 512
+    MAX_SEQ_LENGTH = 256  # Passwords are short; 256 is plenty for PII + password
     
     # Enable gradient checkpointing to save VRAM (trades compute for memory)
     # True = Saves ~3-5GB VRAM, but ~20-30% slower training (use for <=16GB GPUs)
@@ -124,7 +131,7 @@ class Config:
     USE_GRADIENT_CHECKPOINTING = True  
     
     # Lora rank
-    LORA_R = 16 
+    LORA_R = 16
     
     # Scaling, higher = more LoRA influence
     LORA_ALPHA = 32
@@ -135,6 +142,12 @@ class Config:
     # Target modules for Qwen/Llama architectures
     LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
+    # Checkpoint frequency during training
+    # 0 = Only save at end of each epoch (default, recommended for small datasets)
+    # N = Save every N optimizer steps (useful for long training runs)
+    # Checkpoints are saved to models/checkpoints/ and only the last 3 are kept
+    CHECKPOINT_EVERY_STEPS = 100
+
     # =========================================================================
     # 7. SYSTEM PROMPTS & TEMPLATES
     # =========================================================================
@@ -143,59 +156,81 @@ class Config:
         "provided information to guess the corresponding password."
     )
 
+    # Table of field variations and their substitution probabilities
+    # Format: (main_field, variant_field, probability for main_field to be replaced by variant_field) 
+    field_variations = [
+        ("name", "pet_name", 0.05),
+        ("name", "partner_name", 0.1),
+        ("address", "work_address", 0.4),
+        ("email", "work_email", 0.4),
+        ("phone", "id", 0.3),
+    ]
+
+    schema_defaults = {
+        "name": "",
+        "birth_year": "",
+        "birth_month": "",
+        "birth_day": "",
+        "username": "",
+        "email": "",
+        "address": "",
+        "phone": "",
+        "city": "",
+        #"state": "",
+        "country": "",
+        #"zip": "",
+        #"preferred_language": "",
+        #"gender": "",
+        "sister_pw": ""
+    }
+
     @staticmethod
-    def get_formatted_input(pii_dict, target_password=None):
+    def get_formatted_input(pii_dict, target_password=None, tokenizer=None):
         """
-        Formats input PII for the model.
-        Crucially uses NEWLINES to separate fields to prevent 'comma hallucination'.
+        Formats input PII for Qwen3 using chat template.
+        
+        Args:
+            pii_dict: Dictionary of PII fields
+            target_password: Password for training, None for inference
+            tokenizer: Required for specific models to apply chat template
+            
+        Returns: Formatted text string ready for tokenization
         """
+        final_data = Config.schema_defaults.copy()
 
-        # We use space to hold space for missing data
-        schema_defaults = {
-            "name": "",
-            "birth_year": "",
-            "birth_month": "",
-            "birth_day": "",
-            #"id": "",
-            "username": "",
-            "email": "",
-            "address": "",
-            "phone": "",
-            #"city": "",
-            #"state": "",
-            "country": "",
-            #"zip": "",
-            #"preferred_language": "",
-            #"gender": "",
-            "sister_pw": "",
-        }
-
-        # 1. Start with a copy of the defaults so we don't mutate the original
-        final_data = schema_defaults.copy()
-
-        # 2. Clean and merge the inputs
         if pii_dict:
             for k, v in pii_dict.items():
-                val = str(v).strip()
-                # KEY FIX: Check 'k in schema_defaults' before saving
-                if k in schema_defaults and v and val:
-                    final_data[k] = val
+                if k in Config.schema_defaults and v:
+                    if isinstance(v, (list, tuple)):
+                        val = ", ".join(str(item).strip() for item in v if item and str(item).strip())
+                    else:
+                        val = str(v).strip()
+                    if val:
+                        final_data[k] = val
         
-        # FILTER: Remove keys where the value is still an empty string
         final_data = {k: v for k, v in final_data.items() if v}
 
-        # Join with newlines (Iterating over final_data ensures all keys exist)
         aux_str = "\n".join([f"{k}: {v}" for k, v in final_data.items()])
+        user_content = f"{aux_str}\n\nPassword:"
         
-        # Construct final string with clear separator
-        base_prompt = f"{Config.SYSTEM_PROMPT}\n{aux_str}\n\nPassword: "
-
         if target_password is not None:
-            # TRAINING MODE: We want the model to learn the whole sequence
-            return f"{base_prompt}{target_password}"
+            messages = [
+                {"role": "system", "content": Config.SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+                {"role": "assistant", "content": target_password}
+            ]
         else:
-            # INFERENCE MODE: We stop right at the trigger so the model completes it
-            return base_prompt
+            messages = [
+                {"role": "system", "content": Config.SYSTEM_PROMPT},
+                {"role": "user", "content": user_content}
+            ]
+        
+        result = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=(target_password is None)
+        )
+        return result
     
 # ============================================================================
 # DEFAULTS FOR RESETTING CONFIGURATION
@@ -203,12 +238,12 @@ class Config:
 # --- FACTORY DEFAULTS (DO NOT EDIT MANUALLY) ---
 DEFAULT_MIN_PASSWORD_LENGTH = 8
 DEFAULT_MAX_PASSWORD_LENGTH = 16
-DEFAULT_EPSILON_END_PROB = 0.3
+DEFAULT_EPSILON_END_PROB = 0.25
 DEFAULT_INFERENCE_BATCH_SIZE = 32
 DEFAULT_VOCAB_BIAS_UPPER = 0.0
 DEFAULT_VOCAB_BIAS_LOWER = 0.0
-DEFAULT_VOCAB_BIAS_DIGITS = -1.0
-DEFAULT_VOCAB_BIAS_SYMBOLS = -1.0
+DEFAULT_VOCAB_BIAS_DIGITS = 0.0
+DEFAULT_VOCAB_BIAS_SYMBOLS = 0.0
 DEFAULT_VOCAB_WHITELIST = ""
 DEFAULT_VOCAB_BLACKLIST = ""
 DEFAULT_DEVICE = "cuda"
@@ -216,11 +251,11 @@ DEFAULT_TORCH_DTYPE = "bfloat16"
 DEFAULT_USE_4BIT = True
 DEFAULT_LORA_R = 16
 DEFAULT_LORA_ALPHA = 32
-DEFAULT_SCHEDULE_STANDARD = [50, 50, 50, 50, 100, 100, 200, 200, 200, 200] + [500] * 6
-DEFAULT_SCHEDULE_FAST     = [50, 50, 50] + [50] * 13
-DEFAULT_SCHEDULE_SUPERFAST = [20, 20, 20] + [30] * 13
-DEFAULT_SCHEDULE_DEEP     = [100, 200, 500] + [2000] * 13
-
+DEFAULT_CHECKPOINT_EVERY_STEPS = 100
+DEFAULT_USE_GRADIENT_CHECKPOINTING = True
+DEFAULT_INFERENCE_KEEP_RATIO = 0.3
+DEFAULT_NORMALIZE_PROBABILITIES = False
+DEFAULT_INFERENCE_NUM_RUNS = 100
 # =============================================================================
 # AUTO-INITIALIZATION
 # =============================================================================

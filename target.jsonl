@@ -1,12 +1,16 @@
 {
-    "name": "Marcus Thorne",
-    "birth_year": "",
-    "birth_month": "",
-    "birth_day": "",
-    "username": "mthorne88",
-    "email": "",
-    "address": "",
-    "phone": "",
-    "country": "",
-    "sister_pw": ""
+  "name": "",
+  "birth_year": "",
+  "birth_month": "",
+  "birth_day": "",
+  "username": "",
+  "id": "",
+  "pet_name": "",
+  "email": "",
+  "work_email": "",
+  "address": "",
+  "work_address": "",
+  "phone": "",
+  "country": "",
+  "sister_pw": []
 }

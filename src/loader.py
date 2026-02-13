@@ -1,9 +1,8 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from src.model import LoRALayer  # We import the LoRA class logic
+from src.model import LoRALayer  
 from src.config import Config
 
-# First, we load the base pre-trained model
 def build_model():
     print(f"Loading Base Model: {Config.BASE_MODEL_ID}...")
 
@@ -43,11 +42,7 @@ def build_model():
         quantization_config=quantization_config
     )
 
-    # This loads the dictionary that turns "password" into numbers
     tokenizer = AutoTokenizer.from_pretrained(Config.BASE_MODEL_ID)
-
-    # Technical Fix: Mistral/Llama don't have a "padding" token by default
-    # We set it to EOS (End of Sequence) so training doesn't crash
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -62,10 +57,8 @@ def build_model():
 
 # Now that we have the base model, we inject LoRA layers into it
 # LoRA layers are tiny modules that allow us to fine-tune massive models efficiently
-
 def inject_lora_layers(model):
     count = 0
-    print(f"Injecting LoRA Layers (Rank={Config.LORA_R}, Alpha={Config.LORA_ALPHA})...")
 
     # Get the list of modules we want to target from Config
     # e.g. ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
@@ -81,17 +74,11 @@ def inject_lora_layers(model):
 
         if module_suffix in target_modules:
 
-            # Again, neural networks are like trees
-            # A layer is named according to its position in the tree, in the format:
-            # parent_module.child_module
             parent_name = name.rsplit('.', 1)[0]
             child_name = name.rsplit('.', 1)[1]
 
-            # get_submodule is a PyTorch function that retrieves a layer given its name
             parent_module = model.get_submodule(parent_name)
 
-            # We replace the original layer with a LoRA-wrapped layer
-            # We use rank=16 and alpha=32 as per the LoRA paper's recommendation
             lora_layer = LoRALayer(
                 original_layer=module, 
                 rank=Config.LORA_R,
@@ -99,13 +86,9 @@ def inject_lora_layers(model):
                 dropout=Config.LORA_DROPOUT
             )
 
-            # We move the new LoRA layer to the same device as the original layer   
             lora_layer.to(module.weight.device)
 
-            # This line does the actual replacement in the model
             setattr(parent_module, child_name, lora_layer)
             count += 1
-
-    print(f"Success! Injected LoRA into {count} layers matching: {target_modules}")       
             
     return model
