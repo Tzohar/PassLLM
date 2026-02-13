@@ -20,8 +20,6 @@ app_script_path = project_root / "app.py"
 
 file_lock = threading.Lock()
 
-## --- CONFIG IMPORT & FACTORY DEFAULTS ---
-
 missing_files = []
 if not app_script_path.exists():
     missing_files.append("app.py (Inference Engine)")
@@ -63,8 +61,6 @@ if not FACTORY_DEFAULTS:
 else:
     print(f"✅ Loaded {len(FACTORY_DEFAULTS)} factory default settings.")
 print(f"✅ Config loaded from {config_file_path}")
-
-# --- CONFIG READ/WRITE LOGIC ---
 
 def write_config_to_disk(key, value):
     if not config_file_path.exists(): 
@@ -186,6 +182,9 @@ def get_current_config_values():
         get_val("MAX_PASSWORD_LENGTH", "DEFAULT_MAX_PASSWORD_LENGTH", 16),
         get_val("EPSILON_END_PROB", "DEFAULT_EPSILON_END_PROB", 0.3), 
         get_val("INFERENCE_BATCH_SIZE", "DEFAULT_INFERENCE_BATCH_SIZE", 32), 
+        get_val("INFERENCE_NUM_RUNS", "DEFAULT_INFERENCE_NUM_RUNS", 100),       # NEW
+        get_val("INFERENCE_KEEP_RATIO", "DEFAULT_INFERENCE_KEEP_RATIO", 0.3),   # NEW
+        get_val("NORMALIZE_PROBABILITIES", "DEFAULT_NORMALIZE_PROBABILITIES", False), # NEW
         "Standard", # Default Beam Schedule
 
         # Bias Values (Sliders)
@@ -208,6 +207,7 @@ def get_current_config_values():
         get_val("DEVICE", "DEFAULT_DEVICE", "cuda"), 
         get_val("TORCH_DTYPE", "DEFAULT_TORCH_DTYPE", "float16"),
         get_val("USE_4BIT", "DEFAULT_USE_4BIT", True), 
+        get_val("USE_GRADIENT_CHECKPOINTING", "DEFAULT_USE_GRADIENT_CHECKPOINTING", True), # NEW
         get_val("LORA_R", "DEFAULT_LORA_R", 16), 
         get_val("LORA_ALPHA", "DEFAULT_LORA_ALPHA", 32)
     )
@@ -224,12 +224,15 @@ def reload_config_from_disk():
         print(f"❌ Error reloading config: {e}")
         return get_current_config_values()
     
-# --- PII JSON LOGIC ---
 
 BLANK_TEMPLATE = {
-    "name": "", "birth_year": "", "birth_month": "", "birth_day": "",
-    "username": "", "email": "", "address": "", "phone": "",
-    "country": "", "sister_pw": ""
+    "name": "", 
+    "birth_year": "", "birth_month": "", "birth_day": "",
+    "username": "", "id": "", "pet_name": "",
+    "email": "", "work_email": "",
+    "address": "", "work_address": "",
+    "phone": "",
+    "country": "", "sister_pw": [] 
 }
 
 pii_cache = None
@@ -292,17 +295,28 @@ def save_pii_data(data):
 def perform_full_reset():
     save_pii_data(BLANK_TEMPLATE)
     print("✅ PII Reset.")
-    return [""] * 8
+    # Return empty strings for all 12 text fields and a blank table for the dataframe
+    return [""] * 12 + [[[""]]]
 
 def update_pii_field(key, value):
     data = read_pii_file()
     
+    # Handle Sister PW Dataframe -> List conversion
+    if key == "sister_pw":
+        if isinstance(value, list):
+            # Flatten [['p1'], ['p2']] -> ['p1', 'p2']
+            # Filter out empty strings/rows
+            new_list = [str(r[0]) for r in value if r and len(r) > 0 and str(r[0]).strip()]
+            if data.get(key) != new_list:
+                data[key] = new_list
+                save_pii_data(data)
+        return
+
+    # Standard Textbox input
     new_val = str(value)
     if data.get(key) != new_val:
         data[key] = new_val
         save_pii_data(data)
-
-# --- FORMATTERS ---
 
 def fmt_month(val):
     if not val: return ""
@@ -330,25 +344,48 @@ def fmt_year(val):
         
     return digits[:4] #
 
-def fmt_list_commas(val):
-    if not val: return ""
-    items = [x.strip() for x in str(val).split(',') if x.strip()]
-    return ", ".join(items)
-
 def load_pii_to_ui():
     data = read_pii_file()
+    
+    raw_spw = data.get("sister_pw", [])
+    
+    spw_df_data = [[""]]
+    if isinstance(raw_spw, str):
+        # Legacy support: "a,b" -> [['a'], ['b']]
+        spw_df_data = [[x.strip()] for x in raw_spw.split(',') if x.strip()]
+    elif isinstance(raw_spw, list):
+        # JSON List ["a", "b"] -> [['a'], ['b']]
+        spw_df_data = [[str(x)] for x in raw_spw]
+    
+    if not spw_df_data:
+        spw_df_data = [[""]]
+
     return (
         data.get("name", ""), 
+        data.get("id", ""),
         data.get("username", ""), 
+        data.get("pet_name", ""),
         data.get("email", ""),
+        data.get("work_email", ""),
         data.get("phone", ""), 
+        data.get("address", ""),
+        data.get("work_address", ""),
         data.get("birth_year", ""), 
         data.get("birth_month", ""),
         data.get("birth_day", ""), 
-        data.get("sister_pw", "")
+        spw_df_data 
     )
 
-# --- EXECUTION CONTROL ---
+def add_row_handler(current_data):
+    if current_data is None:
+        return [[""]]
+    current_data.append([""])
+    return current_data
+
+def rem_row_handler(current_data):
+    if current_data is None or len(current_data) <= 1:
+        return [[""]] # Keep at least one
+    return current_data[:-1]
 
 current_process = None
 should_stop = False
@@ -515,6 +552,7 @@ def load_model_sim(model_name):
 
         yield f"⏳ Verifying {model_name}..."
         time.sleep(0.5) 
+        # Caching model for future uses, will be implemented in the future
         
         if safe_path.is_dir():
             yield f"✅ Ready: {model_name} (Model Folder)"
@@ -530,8 +568,6 @@ def load_model_sim(model_name):
             
     except Exception as e:
         yield f"❌ Error: {str(e)}"
-
-# --- UI CONSTRUCTION ---
 
 CUSTOM_CSS = """
 /* 1. Main Layout Tweaks */
@@ -552,31 +588,42 @@ CUSTOM_CSS = """
 /* 3. Headers & Typography */
 h3 { margin-bottom: 0.5rem !important; }
 
+/* 4. AGGRESSIVE Header Spacing Fix */
 .section-header {
     font-size: 1.15rem !important; 
     font-weight: 700 !important;
     letter-spacing: 0.5px;
-    margin: 10px 0 5px 0 !important;
-    padding-bottom: 4px;
-    border-bottom: 2px solid var(--border-color-primary); /* Use Gradio variable */
-    /* Color removed: Will now be White in Dark Mode / Black in Light Mode */
+    margin: 0 !important;           /* Kill all margins */
+    padding: 0 0 4px 0 !important;  /* Kill top padding, keep small bottom */
+    border-bottom: 2px solid var(--border-color-primary); 
+    line-height: 1.2 !important;    /* Tighten line height */
+}
+
+/* New: Kill container padding/margins for specific headers */
+.header-container, .header-container .gradio-html {
+    min-height: unset !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
 }
 
 .tight-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-    margin-top: 8px;
-    min-height: 40px; 
+    gap: 8px !important;
+    margin: 0 !important;
+    margin-top: 2px !important;
+    min-height: unset !important;
 }
 
+/* Ensure the HTML container inside tight-header also shrinks */
 .tight-header .gradio-html {
     min-height: unset !important;
     padding: 0 !important;
+    margin: 0 !important;
 }
 
-/* 4. Compact PII Rows */
+/* 5. Compact PII Rows */
 .pii-row {
     margin-bottom: 0 !important;
     gap: 8px !important; 
@@ -586,10 +633,13 @@ h3 { margin-bottom: 0.5rem !important; }
     gap: 0 !important; 
 }
 
-/* 5. Log Window Scroll Fix */
+/* 6. Log Window Scroll Fix */
 #component-log-accordion > .label-wrap { 
     border: none !important; 
 }
+
+/* 7. Hide Dataframe Header for Sister PW */
+#sister_pw_grid thead { display: none !important; }
 """
 
 def create_ui():
@@ -613,10 +663,9 @@ def create_ui():
 
         with gr.Row():
             
-            # --- LEFT: CONFIGURATION ---
             with gr.Column(scale=1, variant="panel"):
                 with gr.Group():
-                    gr.HTML("<div class='section-header' title='Global actions to manage configuration.'>🛠️ Configuration Actions</div>")
+                    gr.HTML("<div class='section-header' title='Global actions to manage configuration.'>🛠️ Configuration Actions</div>", elem_classes="header-container")
                     with gr.Row(variant="compact"):
                         reload_btn = gr.Button("📂 Read from Config", size="sm", variant="secondary", elem_id="read_config_btn")
                         reset_btn = gr.Button("↺ Factory Reset", size="sm", variant="stop")
@@ -631,6 +680,12 @@ def create_ui():
                     gr.HTML("<h4 title='How the AI explores possibilities.'>🧠 Search Strategy</h4>")
                     epsilon = gr.Slider(0.0, 1.0, value=config.Config.EPSILON_END_PROB, step=0.01, label="Stop Probability (ε)", info="Confidence threshold. Higher = Stricter.")
                     batch_size = gr.Slider(1, 128, value=config.Config.INFERENCE_BATCH_SIZE, step=1, label="Batch Size", info="Parallel candidates per step.")
+                    
+                    with gr.Row():
+                        num_runs = gr.Number(value=getattr(config.Config, "INFERENCE_NUM_RUNS", 100), label="Num Runs", precision=0, step=1, info="Total inference cycles.")
+                        keep_ratio = gr.Slider(0.0, 1.0, value=getattr(config.Config, "INFERENCE_KEEP_RATIO", 0.3), step=0.05, label="Keep Ratio", info="Fraction of fields to keep.")
+
+                    norm_probs = gr.Checkbox(label="Normalize Probabilities", value=getattr(config.Config, "NORMALIZE_PROBABILITIES", False))
                     schedule_dropdown = gr.Dropdown(choices=["Standard", "Fast", "Superfast", "Deep Search"], value="Standard", label="Beam Search Schedule", interactive=True, info="Search width.")
 
                 with gr.Accordion("🔤 Vocabulary Constraints", open=True, elem_id="voca_acc"):
@@ -655,6 +710,7 @@ def create_ui():
                     device = gr.Radio(["cuda", "cpu", "dml"], label="Compute Device", value=config.Config.DEVICE)
                     dtype = gr.Dropdown(choices=["float16", "bfloat16", "float32"], label="Torch Datatype", value=str(config.Config.TORCH_DTYPE).split('.')[-1] if 'torch' in str(config.Config.TORCH_DTYPE) else str(config.Config.TORCH_DTYPE))
                     use_4bit = gr.Checkbox(label="4-Bit Quantization", value=config.Config.USE_4BIT)
+                    grad_checkpoint = gr.Checkbox(label="Gradient Checkpointing", value=getattr(config.Config, "USE_GRADIENT_CHECKPOINTING", True))
 
                 with gr.Accordion("🧬 LoRA Adapters", open=True, elem_id="lora_acc"):
                     gr.HTML("<p style='margin-bottom: 10px;'><i>Fine-tuning weights for the inference engine.</i></p>")
@@ -662,30 +718,49 @@ def create_ui():
                         lora_r = gr.Number(value=config.Config.LORA_R, label="Rank (r)", precision=0)
                         lora_alpha = gr.Number(value=config.Config.LORA_ALPHA, label="Alpha", precision=0)
 
-            # --- RIGHT: PII INPUTS ---
             with gr.Column(scale=2):
                 
                 with gr.Group():
                     with gr.Row(elem_classes="tight-header"):
-                         gr.HTML("<div class='section-header' title='Personal info used to customize the attack.'>🎯 Target Profile (PII)</div>")
+                         gr.HTML("<div class='section-header' title='Personal info used to customize the attack.'>🎯 Target Profile (PII)</div>", elem_classes="header-container")
 
-                    # Identity
                     with gr.Row(elem_classes="pii-row"):
-                        inp_name = gr.Textbox(label="👤 Full Name", placeholder="e.g. John Doe")
-                        inp_username = gr.Textbox(label="👤 Username", placeholder="e.g. jdoe99")
+                        inp_name = gr.Textbox(label="👤 Full Name", placeholder="e.g. John Doe", scale=2)
+                        inp_id = gr.Textbox(label="🆔 ID Number", placeholder="e.g. 123456789", scale=1)
                     
-                    # Contact
                     with gr.Row(elem_classes="pii-row"):
-                        inp_email = gr.Textbox(label="📧 Email", placeholder="e.g. john@example.com")
-                        inp_phone = gr.Textbox(label="📞 Phone", placeholder="e.g. 555-0199")
+                        inp_username = gr.Textbox(label="🖥️ Username", placeholder="e.g. jdoe99", scale=1)
+                        inp_pet = gr.Textbox(label="🐶 Pet Name", placeholder="e.g. Fluffy", scale=1)
+                        inp_phone = gr.Textbox(label="📞 Phone", placeholder="e.g. 555-0199", scale=2)
 
-                    # Dates
+                    with gr.Row(elem_classes="pii-row"):
+                        inp_email = gr.Textbox(label="📧 Personal Email", placeholder="e.g. john@home.com", scale=1)
+                        inp_work_email = gr.Textbox(label="🏢 Work Email", placeholder="e.g. john@corp.com", scale=1)                       
+
+                    with gr.Row(elem_classes="pii-row"):
+                        inp_home_addr = gr.Textbox(label="🏠 Home Address", placeholder="Street, City, Zip...", scale=1)
+                        inp_work_addr = gr.Textbox(label="🏢 Work Address", placeholder="Office, City, Zip...", scale=1)
+
                     with gr.Row(elem_classes="pii-row"):
                         inp_year = gr.Textbox(label="📅 Year", placeholder="YYYY")
                         inp_month = gr.Textbox(label="📅 Month", placeholder="MM")
                         inp_day = gr.Textbox(label="📅 Day", placeholder="DD")
                     
-                    inp_sister = gr.Textbox(label="🔑 Sister Passwords", placeholder="pass1, pass2, pass3", info="Comma separated previous passwords.")
+                    with gr.Group():
+                        gr.Markdown("###### 🔑 Sister Passwords (Known/Previous)")
+                        sister_pw_df = gr.Dataframe(
+                            headers=None, # Removed explicit header
+                            datatype=["str"],
+                            col_count=(1, "fixed"), # Enforce fixed single column
+                            type="array",
+                            interactive=True,
+                            wrap=True,
+                            scale=2,
+                            elem_id="sister_pw_grid" # Targeted for CSS hiding of header
+                        )
+                        with gr.Row():
+                            add_pw_btn = gr.Button("➕ Add Row", size="sm", variant="secondary")
+                            rem_pw_btn = gr.Button("➖ Remove Last", size="sm", variant="secondary")
 
                 with gr.Row(variant="panel"):
                     pii_load_btn = gr.Button("📂 Read target.jsonl", variant="secondary", scale=1, elem_id="pii_load_btn") # MOVED HERE
@@ -705,13 +780,17 @@ def create_ui():
                 with gr.Accordion("View Raw Logs", open=False):
                     console_log = gr.Markdown(value="*Ready...*")
 
-        # --- EVENT WIRING ---
         load_btn.click(load_model_sim, inputs=[model_selector], outputs=[status_bar])
 
         min_len.change(lambda x: update_setting("MIN_PASSWORD_LENGTH", int(x)), inputs=[min_len])
         max_len.change(lambda x: update_setting("MAX_PASSWORD_LENGTH", int(x)), inputs=[max_len])
         epsilon.change(lambda x: update_setting("EPSILON_END_PROB", float(x)), inputs=[epsilon])
         batch_size.change(lambda x: update_setting("INFERENCE_BATCH_SIZE", int(x)), inputs=[batch_size])
+        
+        num_runs.change(lambda x: update_setting("INFERENCE_NUM_RUNS", int(x)), inputs=[num_runs])
+        keep_ratio.change(lambda x: update_setting("INFERENCE_KEEP_RATIO", float(x)), inputs=[keep_ratio])
+        norm_probs.change(lambda x: update_setting("NORMALIZE_PROBABILITIES", bool(x)), inputs=[norm_probs])
+        grad_checkpoint.change(lambda x: update_setting("USE_GRADIENT_CHECKPOINTING", bool(x)), inputs=[grad_checkpoint])
 
         chk_upper.change(fn=lambda b, v: handle_ban_toggle("VOCAB_BIAS_UPPER", b, v), inputs=[chk_upper, bias_upper], outputs=[bias_upper])
         chk_lower.change(fn=lambda b, v: handle_ban_toggle("VOCAB_BIAS_LOWER", b, v), inputs=[chk_lower, bias_lower], outputs=[bias_lower])
@@ -730,44 +809,60 @@ def create_ui():
         lora_r.change(lambda x: update_setting("LORA_R", int(x)), inputs=[lora_r])
         lora_alpha.change(lambda x: update_setting("LORA_ALPHA", int(x)), inputs=[lora_alpha])
 
-        # Update Reset/Reload output list 
         config_outputs = [
-            min_len, max_len, epsilon, batch_size, schedule_dropdown, 
+            min_len, max_len, epsilon, batch_size, 
+            num_runs, keep_ratio, norm_probs, 
+            schedule_dropdown, 
             bias_upper, bias_lower, bias_digits, bias_symbols, 
             chk_upper, chk_lower, chk_digits, chk_symbols, 
-            whitelist, blacklist, device, dtype, use_4bit, lora_r, lora_alpha
+            whitelist, blacklist, device, dtype, use_4bit, 
+            grad_checkpoint, 
+            lora_r, lora_alpha
         ]
 
-        app.load(fn=load_pii_to_ui, inputs=None, outputs=[inp_name, inp_username, inp_email, inp_phone, inp_year, inp_month, inp_day, inp_sister])
+        pii_inputs = [
+            inp_name, inp_id, inp_username, inp_pet, 
+            inp_email, inp_work_email, inp_phone, 
+            inp_home_addr, inp_work_addr, 
+            inp_year, inp_month, inp_day, 
+            sister_pw_df 
+        ]
+
+        app.load(fn=load_pii_to_ui, inputs=None, outputs=pii_inputs)
         app.load(fn=reload_config_from_disk, inputs=None, outputs=config_outputs)
 
         reset_btn.click(fn=reset_to_factory, inputs=[], outputs=config_outputs)
         reload_btn.click(fn=reload_config_from_disk, inputs=[], outputs=config_outputs)
         
-        # --- PII WIRING ---
         inp_name.change(lambda x: update_pii_field("name", x), inputs=[inp_name])
+        inp_id.change(lambda x: update_pii_field("id", x), inputs=[inp_id])
         inp_username.change(lambda x: update_pii_field("username", x), inputs=[inp_username])
+        inp_pet.change(lambda x: update_pii_field("pet_name", x), inputs=[inp_pet])
         inp_email.change(lambda x: update_pii_field("email", x), inputs=[inp_email])
+        inp_work_email.change(lambda x: update_pii_field("work_email", x), inputs=[inp_work_email])
         inp_phone.change(lambda x: update_pii_field("phone", x), inputs=[inp_phone])
+        inp_home_addr.change(lambda x: update_pii_field("address", x), inputs=[inp_home_addr])
+        inp_work_addr.change(lambda x: update_pii_field("work_address", x), inputs=[inp_work_addr])
         inp_year.change(lambda x: update_pii_field("birth_year", x), inputs=[inp_year])
         inp_month.change(lambda x: update_pii_field("birth_month", x), inputs=[inp_month])
         inp_day.change(lambda x: update_pii_field("birth_day", x), inputs=[inp_day])
-        inp_sister.change(lambda x: update_pii_field("sister_pw", x), inputs=[inp_sister])
+        
+        add_pw_btn.click(fn=add_row_handler, inputs=[sister_pw_df], outputs=[sister_pw_df])
+        rem_pw_btn.click(fn=rem_row_handler, inputs=[sister_pw_df], outputs=[sister_pw_df])
+        sister_pw_df.change(fn=lambda x: update_pii_field("sister_pw", x), inputs=[sister_pw_df])
 
         inp_month.blur(fn=fmt_month, inputs=[inp_month], outputs=[inp_month])
         inp_day.blur(fn=fmt_day, inputs=[inp_day], outputs=[inp_day])
         inp_year.blur(fn=fmt_year, inputs=[inp_year], outputs=[inp_year])
-        inp_sister.blur(fn=fmt_list_commas, inputs=[inp_sister], outputs=[inp_sister])
         
-        pii_load_btn.click(fn=load_pii_to_ui, inputs=[], outputs=[inp_name, inp_username, inp_email, inp_phone, inp_year, inp_month, inp_day, inp_sister])
+        pii_load_btn.click(fn=load_pii_to_ui, inputs=[], outputs=pii_inputs)
         
         clear_btn.click(
             fn=perform_full_reset, 
             inputs=[], 
-            outputs=[inp_name, inp_username, inp_email, inp_phone, inp_year, inp_month, inp_day, inp_sister]
+            outputs=pii_inputs
         )
 
-        # --- EXECUTION WIRING ---
         gen_btn.click(
             fn=run_inference_process,
             inputs=[schedule_dropdown, model_selector],
@@ -788,4 +883,3 @@ if __name__ == "__main__":
 
 
     app.launch(theme=theme, css=CUSTOM_CSS)
-

@@ -1,8 +1,6 @@
-torch>=2.4.0
 transformers>=4.48.0, <5.0.0
 peft
 datasets
 bitsandbytes
 accelerate
 
-torch-directml; sys_platform == 'win32'

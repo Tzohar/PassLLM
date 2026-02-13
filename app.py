@@ -6,6 +6,8 @@ from src.loader import build_model, inject_lora_layers
 from inference import predict_password # Import logic
 from src.config import Config
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="PassLLM Command Line Tool")
@@ -13,6 +15,7 @@ def parse_arguments():
     parser.add_argument("--weights", type=str, default=None, help="Path to model weights (default: from config)")
     parser.add_argument("--fast", action="store_true", help="Use fast mode (less accurate, quicker, for low-end GPUs)")
     parser.add_argument("--superfast", action="store_true", help="Use super fast mode (least accurate, quickest, for very low-end GPUs)")
+    parser.add_argument("--deep", action="store_true", help="Use deep mode (highest accuracy, slowest, for high-end GPUs)")
     return parser.parse_args()
 
 def load_profile(args):
@@ -34,27 +37,30 @@ def load_profile(args):
 
     return profile
 
-def main():
-    args = parse_arguments()
-    
-    # Load our system (model + tokenizer)
-    print(f"Loading PassLLM System...")
+def load():
+    print("[+] Loading PassLLM System for Web UI...")
     try:
         model, tokenizer = build_model()
         model = inject_lora_layers(model)
 
-        weights_path = args.weights if args.weights else Config.WEIGHTS_FILE
-        print(f"Loading Weights from: {weights_path}...")
+        weights_path = Config.WEIGHTS_FILE
+        print(f"[+] Loading Weights from: {weights_path}...")
 
-        # We're using the cpu map_location to ensure compatibility across devices
         checkpoint = torch.load(weights_path, map_location="cpu")
         model.load_state_dict(checkpoint, strict=False)    
 
         model.eval()
+        return model, tokenizer
 
     except FileNotFoundError:
         print(f"CRITICAL ERROR: Weights not found at {weights_path}")
         sys.exit(1)
+
+def main():
+    args = parse_arguments()
+    # Load our system (model + tokenizer)
+    print(f"Loading PassLLM System...")
+    model, tokenizer = load()
 
     profile = load_profile(args)
 
@@ -64,11 +70,14 @@ def main():
     elif args.superfast:
         schedule = Config.SCHEDULE_SUPERFAST
         print("[+] Mode: SUPERFAST (Lowest accuracy, highest speed)")
+    elif args.deep:
+        schedule = Config.SCHEDULE_DEEP
+        print("[+] Mode: DEEP (Highest accuracy, slowest speed)")
     else:
         schedule = Config.SCHEDULE_STANDARD
         print("[+] Mode: STANDARD (High accuracy)")
 
-    print(f"\n[+] Target Locked: {profile['name']}")
+    print(f"[+] Locked: {profile['name']}")
     print("[+] Guessing...")
 
     candidates = predict_password(model, tokenizer, profile, beam_schedule=schedule)
@@ -78,7 +87,7 @@ def main():
     print("-" * 30)
 
     for cand in candidates[:100]: # Show top 100, the rest will be logged in /results
-        pwd = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
+        pwd = cand['password']
         # Prefer normalized percentage if generation attached it
         if 'probability' in cand:
             print(f"{cand['probability']:.2f}% | {pwd} ({cand['score']:.4f} log)")
@@ -94,7 +103,7 @@ def main():
 
     output_data = []
     for cand in candidates:
-        text = tokenizer.decode(cand['sequence'], skip_special_tokens=True)
+        text = cand['password']
         
         if 'probability' in cand:
             prob = cand['probability']

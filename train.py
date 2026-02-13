@@ -1,3 +1,4 @@
+
 import torch
 import torch.nn as nn
 import math
@@ -58,33 +59,29 @@ def format_and_mask(sample, tokenizer):
     '''
     full_text = Config.get_formatted_input(
         pii_dict=sample['pii'], 
-        target_password=sample['output']
+        target_password=sample['output'],
+        tokenizer=tokenizer
     )
-    full_text += tokenizer.eos_token
 
     max_len = getattr(Config, 'MAX_SEQ_LENGTH', 512)
     encodings = tokenizer(full_text, truncation=True, padding='max_length', max_length=max_len)
 
-    # Initially, the labels are identical to the input
     input_ids = encodings['input_ids']
     attention_mask = encodings['attention_mask']
     labels = list(input_ids)
 
-    # We re-tokenize JUST the prompt (Instruction + Input) to find its length
     prompt_text = Config.get_formatted_input(
         pii_dict=sample['pii'], 
-        target_password=None  
+        target_password=None,
+        tokenizer=tokenizer
     )
     
     prompt_ids = tokenizer(prompt_text, truncation=True, max_length=max_len)["input_ids"]
     prompt_len = len(prompt_ids)
 
-    # Setting a label to -100 means "Ignore this"
-    # We set all tokens BEFORE the password to -100 so they don't contribute to the loss
     if prompt_len < len(labels):
         labels[:prompt_len] = [-100] * prompt_len
 
-    # attention_mask is 0 by default for padding tokens, so we must set their labels to -100
     for i, mask_val in enumerate(attention_mask):
         if mask_val == 0:
             labels[i] = -100
@@ -104,12 +101,8 @@ def prepare_data(tokenizer):
         lambda x: format_and_mask(x, tokenizer),
         remove_columns=dataset.column_names  
     )
-
-    # The data initially holds standard Python lists
-    # We convert it into PyTorch Tensors 
     tokenized_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
 
-    # Shuffle is set to true because we want to randomize the order of samples to improve training
     return DataLoader(tokenized_dataset, Config.TRAIN_BATCH_SIZE, shuffle=True)
 
 def train_loop(model, tokenizer, dataloader):
@@ -121,8 +114,9 @@ def train_loop(model, tokenizer, dataloader):
     print("Starting Training Loop...")
     global_step = 0
     num_training_steps = (len(dataloader) // Config.GRAD_ACCUMULATION) * Config.NUM_EPOCHS
+    
+    checkpoint_every_steps = getattr(Config, 'CHECKPOINT_EVERY_STEPS', 0)
 
-    # We ignore the frozen parameters by filtering with 'requires_grad'
     optimizer = torch.optim.AdamW(
         filter(lambda p: p.requires_grad, model.parameters()), 
         lr = Config.LEARNING_RATE
@@ -151,8 +145,6 @@ def train_loop(model, tokenizer, dataloader):
 
             outputs = model(input_ids=input_ids, attention_mask=mask, labels=labels)
 
-            # Because we passed 'labels' with -100 masking, the model
-            # automatically computes the loss only on the password tokens
             loss = outputs.loss / Config.GRAD_ACCUMULATION
             loss.backward()
 
@@ -161,6 +153,9 @@ def train_loop(model, tokenizer, dataloader):
                 scheduler.step()
                 optimizer.zero_grad()
                 global_step += 1
+                
+                if checkpoint_every_steps > 0 and global_step % checkpoint_every_steps == 0:
+                    save_checkpoint(model, optimizer, scheduler, epoch, global_step, current_loss)
 
             current_loss = loss.item() * Config.GRAD_ACCUMULATION
             total_loss += current_loss
@@ -168,8 +163,35 @@ def train_loop(model, tokenizer, dataloader):
         
         avg_loss = total_loss / len(dataloader)
         print(f"Epoch {epoch+1} Complete. Average Loss: {avg_loss}")
+        
+        save_checkpoint(model, optimizer, scheduler, epoch, global_step, avg_loss)
 
     return model
+
+def save_checkpoint(model, optimizer, scheduler, epoch, global_step, loss):
+    checkpoint_dir = Config.MODELS_DIR / "checkpoints"
+    checkpoint_dir.mkdir(exist_ok=True)
+    
+    checkpoint_path = checkpoint_dir / f"checkpoint_epoch{epoch+1}_step{global_step}.pt"
+    
+    lora_state_dict = {k: v for k, v in model.state_dict().items() if "lora_" in k}
+    
+    checkpoint = {
+        'epoch': epoch,
+        'global_step': global_step,
+        'lora_state_dict': lora_state_dict,
+        'optimizer_state_dict': optimizer.state_dict(),
+        'scheduler_state_dict': scheduler.state_dict(),
+        'loss': loss,
+    }
+    
+    torch.save(checkpoint, checkpoint_path)
+    print(f"Checkpoint saved: {checkpoint_path.name}")
+    
+    checkpoints = sorted(checkpoint_dir.glob("checkpoint_*.pt"), key=lambda x: x.stat().st_mtime)
+    for old_ckpt in checkpoints[:-3]:
+        old_ckpt.unlink()
+        print(f"Removed old checkpoint: {old_ckpt.name}")
 
 def save_model(model):
     '''
