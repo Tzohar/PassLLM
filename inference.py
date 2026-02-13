@@ -83,5 +83,12 @@ def predict_password(model, tokenizer, target_profile, max_depth=16, beam_schedu
         if isinstance(pw, str) and pw.strip() and pw not in seen:
             deduped_candidates.append(cand)
             seen.add(pw)
+        elif isinstance(pw, str) and pw.strip() and pw in seen:
+            existing_cand = next((c for c in deduped_candidates if c['password'] == pw), None)
+            if existing_cand and cand.get('score', 0) > existing_cand.get('score', 0):
+                deduped_candidates.remove(existing_cand)
+                deduped_candidates.append(cand)
+                seen.add(pw)
+
     deduped_candidates.sort(key=lambda x: x.get('score', 0), reverse=True)
     return deduped_candidates
