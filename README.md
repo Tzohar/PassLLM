@@ -206,20 +206,19 @@ CONFIDENCE | PASSWORD
 `{"name": "Omar Al-Fayed", "birth_year": "1992", "birth_month": "05", "birth_day": "18", "username": "omar.fayed92", "email": "o.alfayed@business.ae", "address": "Villa 14, Palm Jumeirah", "phone": "+971-50-123-4567", "country": "UAE", "sister_pw": "Amira1235"}`:
 
 ```text
-TO BE UPDATED
 $ python app.py --file target.jsonl 
 
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-1.88%     | 1q2w3e4r
-1.59%     | 05181992        
-0.95%     | 12345678     
-0.66%     | 12345Fayed 
-0.50%     | 1OmarFayed92
-0.48%     | 1992OmarFayed
-0.43%     | 123456amira
-... (2865 passwords generated)
+79.75%     | amira1235 (sister password, with lower case a) 
+43.77%     | Ammira1235 (common pattern in reusing passwords)     
+19.14%     | Omar1235 (drawing on the sister password pattern)    
+11.03%     | Omar1234
+8.52%      | omarr.alfayid
+8.20%      | omar1235
+7.52%      | 051892
+... (24,559 passwords generated)
 ```
 ## Disclaimer
 
