@@ -154,18 +154,18 @@ $ python app.py --file target.jsonl --superfast
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-0.42%     | 88888888       
-0.32%     | 12345678            
-0.16%     | 1976mthorne     
-0.15%     | 88marcus88
-0.15%     | 1234ABC
-0.15%     | 88Marcus!
-0.14%     | 1976Marcus
-... (227 passwords generated)
+1.96%     | marcus1976   
+1.91%     | thorne1976 
+1.20%     | mthorne1976 
+1.19%     | marc1976 (marc is a common diminutive of Marcus, used in many passwords) 
+1.18%     | a123456 (a high-probability global baseline across users with similar PII) 
+1.16%     | marci1976 (another common variation of Marcus)
+1.01%     | winniethepooh (our training dataset demonstrated Winnie-related passwords to be common in Canada)
+... (907 passwords generated)
 ```
 
 
-`{"name": "Elena Rodriguez", "birth_year": "1995", "birth_month": "12", "birth_day": "04", "email": "elena1.rod51@gmail.com"}`:
+`{"name": "Elena Rodriguez", "birth_year": "1995", "birth_month": "12", "birth_day": "04", "email": "elena1.rod51@gmail.com", "id":"489298321"}`:
 
 ```text
 $ python app.py --file target.jsonl --fast
@@ -173,18 +173,18 @@ $ python app.py --file target.jsonl --fast
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-1.82%     | 19950404       
-1.27%     | 19951204            
-0.88%     | 1995rodriguez      
-0.55%     | 19951204
-0.50%     | 11111111
-0.48%     | 1995Rodriguez
-0.45%     | 19951995
-... (338 passwords generated)
+8.55%     | elena1204 (all variations of name + birth date are naturally given very high probability)
+8.16%     | elena1995
+7.77%     | elena951204     
+6.29%     | elena9512
+5.37%     | Elena1995
+5.32%     | elena1.rod51 
+5.00%     | 120495
+... (5,895 passwords generated)
 ```
 
 
-`{"name": "Sophia M. Turner", "birth_year": "2001", "username": "soph_t", "email": "sturner99@yahoo.com", "country": "England", "sister_pw": ["soph12345", "13rockm4n", "01mamamia"]}`:
+`{"name": "Sophia M. Turner", "birth_year": "2001", "pet_name": "Fluffy", "username": "soph_t", "email": "sturner99@yahoo.com", "country": "England", "sister_pw": ["soph12345", "13rockm4n", "01mamamia"]}`:
 
 ```text
 $ python app.py --file target.jsonl --fast
@@ -192,20 +192,21 @@ $ python app.py --file target.jsonl --fast
 --- TOP CANDIDATES ---
 CONFIDENCE | PASSWORD
 ------------------------------
-1.69%     | 01mamamia01       
-1.23%     | 13Rockm4n!            
-1.14%     | 01mamamia13     
-1.02%     | 13rockm4n01
-0.96%     | 01mamamia123
-0.93%     | 01mama1234
-0.77%     | 01mama12345
-... (288 passwords generated)
+2.93%     | sophia123 (this is a mix of the target's first name and the sister password "soph12345")       
+2.53%     | mamamia01 (a simple variation of another sister password)       
+1.96%     | sophia2001     
+1.78%     | sophie123 (UK passwords often interchange between "sophie" and "sophia")
+1.45%     | 123456a (a very commmon password, ranked high due to the "12345" pattern) 
+1.39%     | sophiesophie1
+1.24%     | sturner999 
+... (10,169 passwords generated)
 ```
 
  
 `{"name": "Omar Al-Fayed", "birth_year": "1992", "birth_month": "05", "birth_day": "18", "username": "omar.fayed92", "email": "o.alfayed@business.ae", "address": "Villa 14, Palm Jumeirah", "phone": "+971-50-123-4567", "country": "UAE", "sister_pw": "Amira1235"}`:
 
 ```text
+TO BE UPDATED
 $ python app.py --file target.jsonl 
 
 --- TOP CANDIDATES ---
