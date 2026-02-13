@@ -75,7 +75,7 @@ class Config:
 
     # Number of inference runs with random field dropout
     # Multiple runs with different random subsets of PII can help generate more diverse candidates, but will increase inference time.
-    INFERENCE_NUM_RUNS = 100
+    INFERENCE_NUM_RUNS = 50
 
     # Fraction of fields to keep per run (gradually increases randomness and diversity, but may reduce accuracy if too low)
     INFERENCE_KEEP_RATIO = 0.5
@@ -236,10 +236,10 @@ class Config:
 # DEFAULTS FOR RESETTING CONFIGURATION
 # ============================================================================
 # --- FACTORY DEFAULTS (DO NOT EDIT MANUALLY) ---
-DEFAULT_MIN_PASSWORD_LENGTH = 8
+DEFAULT_MIN_PASSWORD_LENGTH = 6
 DEFAULT_MAX_PASSWORD_LENGTH = 16
 DEFAULT_EPSILON_END_PROB = 0.25
-DEFAULT_INFERENCE_BATCH_SIZE = 32
+DEFAULT_INFERENCE_BATCH_SIZE = 64
 DEFAULT_VOCAB_BIAS_UPPER = 0.0
 DEFAULT_VOCAB_BIAS_LOWER = 0.0
 DEFAULT_VOCAB_BIAS_DIGITS = 0.0
@@ -248,14 +248,14 @@ DEFAULT_VOCAB_WHITELIST = ""
 DEFAULT_VOCAB_BLACKLIST = ""
 DEFAULT_DEVICE = "cuda"
 DEFAULT_TORCH_DTYPE = "bfloat16"
-DEFAULT_USE_4BIT = True
+DEFAULT_USE_4BIT = False
 DEFAULT_LORA_R = 16
 DEFAULT_LORA_ALPHA = 32
 DEFAULT_CHECKPOINT_EVERY_STEPS = 100
 DEFAULT_USE_GRADIENT_CHECKPOINTING = True
-DEFAULT_INFERENCE_KEEP_RATIO = 0.3
+DEFAULT_INFERENCE_KEEP_RATIO = 0.5
 DEFAULT_NORMALIZE_PROBABILITIES = False
-DEFAULT_INFERENCE_NUM_RUNS = 100
+DEFAULT_INFERENCE_NUM_RUNS = 50
 # =============================================================================
 # AUTO-INITIALIZATION
 # =============================================================================
