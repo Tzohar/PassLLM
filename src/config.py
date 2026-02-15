@@ -56,7 +56,7 @@ class Config:
     # 4. GENERATION ENGINE (INFERENCE)
     # =========================================================================
     MAX_PASSWORD_LENGTH = 16
-    MIN_PASSWORD_LENGTH = 6
+    MIN_PASSWORD_LENGTH = 8
 
     # Minimum probability for <EOS> to consider password complete
     EPSILON_END_PROB = 0.3
@@ -134,7 +134,7 @@ class Config:
     LORA_R = 16
     
     # Scaling, higher = more LoRA influence
-    LORA_ALPHA = 28
+    LORA_ALPHA = 32
 
     # Percent of training samples that would render as blank
     LORA_DROPOUT = 0.2
@@ -236,7 +236,7 @@ class Config:
 # DEFAULTS FOR RESETTING CONFIGURATION
 # ============================================================================
 # --- FACTORY DEFAULTS (DO NOT EDIT MANUALLY) ---
-DEFAULT_MIN_PASSWORD_LENGTH = 6
+DEFAULT_MIN_PASSWORD_LENGTH = 8
 DEFAULT_MAX_PASSWORD_LENGTH = 16
 DEFAULT_EPSILON_END_PROB = 0.3
 DEFAULT_INFERENCE_BATCH_SIZE = 64
