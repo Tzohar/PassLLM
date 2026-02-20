@@ -102,12 +102,13 @@ Create a `target.jsonl` file (or use the existing one) in the main folder. You c
 
 2. **Run the Engine:**
 ```bash
-python app.py --file target.jsonl --fast 
+python app.py --file target.jsonl --weights models/PassLLM-Qwen3-4B-v1.0.pth --fast 
 
 ```
 
 * `--file`: Path to your target PII file.
 * `--fast`: Uses optimized, shallow beam search (omit for full deep search).
+* `--weights`: Path to your downloaded model weights (e.g., the .pth file).
 * `--superfast`: Very quick but less accurate, mainly for testing.
 ### Training From Databases
 
