@@ -46,10 +46,10 @@ The model fine-tunes 7B/4B parameter LLMs on millions of leaked PII records usin
 
 ### Configuration
    
-Download the [trained weights](https://github.com/Tzohar/PassLLM/releases/download/v1.3.0/PassLLM_LoRA_Weights.pth) (~160 MB) and place them in the `models/` directory.
+Download the [trained weights](https://github.com/Tzohar/PassLLM/releases/download/v1.3.0/PassLLM-Qwen3-4B-v1.0.pth) (~126 MB) and place them in the `models/` directory.
 *Alternatively, via terminal:*
 ```bash
-curl -L https://github.com/Tzohar/PassLLM/releases/download/v1.3.0/PassLLM_LoRA_Weights.pth -o models/PassLLM_LoRA_Weights.pth
+curl -L https://github.com/Tzohar/PassLLM/releases/download/v1.3.0/PassLLM-Qwen3-4B-v1.0.pth -o models/PassLLM_LoRA_Weights.pth
 ```
 
    
@@ -79,7 +79,7 @@ python webui.py
 ```
 2. **Generate:**
 * Open the local URL (e.g., `http://127.0.0.1:7860`).
-* **Select Model:** Choose `PassLLM_LoRA_Weights.pth` from the dropdown.
+* **Select Model:** Choose the most recent model from the dropdown.
 * **Enter PII:** Fill in the target's Name, Email, Birth Year, etc., into the form.
 * **Click Generate:** The engine will stream ranked candidates in real-time.
 
