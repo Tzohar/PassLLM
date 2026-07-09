@@ -6,8 +6,7 @@
 [![CUDA](https://img.shields.io/badge/CUDA-12.1-green.svg?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tzohar/PassLLM/blob/main/PassLLM_Demo.ipynb)
 [![Email](https://img.shields.io/badge/Email-PassLLM%40proton.me-blue?style=flat&logo=protonmail&logoColor=white)](mailto:passllm@proton.me)
-> **⚠️ Project Status:** This project is temporarily on hold, but development and updates will resume later this year.
-
+> **⚠️ Project Status:** This project is temporarily on hold, but updates will resume soon. I am currently rewriting some sections to speed up generation by up to 50x and increase generation volume to 10,000+ candidates per inference.
 ## About The Project
 **PassLLM is the world's most accurate targeted password guessing framework**, [outperforming other models by 15% to 45%](https://www.usenix.org/conference/usenixsecurity25/presentation/zou-yunkai) in most scenarios. It uses Personally Identifiable Information (PII) - such as _names, birthdays, phone numbers, emails and previous passwords_ - to predict the specific passwords a target is most likely to use. 
 The model fine-tunes 7B/4B parameter LLMs on millions of leaked PII records using LoRA, enabling a private, high-accuracy framework that runs entirely on consumer PCs.
