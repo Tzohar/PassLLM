@@ -55,25 +55,14 @@ def build_model():
     
     return model, tokenizer
 
-# Now that we have the base model, we inject LoRA layers into it
-# LoRA layers are tiny modules that allow us to fine-tune massive models efficiently
 def inject_lora_layers(model):
     count = 0
-
-    # Get the list of modules we want to target from Config
-    # e.g. ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     target_modules = set(Config.LORA_TARGET_MODULES)
 
-    # We shall go through each layer in the model
-    # Neural networks are like trees - this function walks through every branch
     for name, module in model.named_modules():
-
-        # Check if the module name ends with one of our targets (e.g. "...self_attn.q_proj")
-        # name.split('.')[-1] gets the last part: "q_proj"
         module_suffix = name.split('.')[-1]
 
         if module_suffix in target_modules:
-
             parent_name = name.rsplit('.', 1)[0]
             child_name = name.rsplit('.', 1)[1]
 
@@ -82,8 +71,7 @@ def inject_lora_layers(model):
             lora_layer = LoRALayer(
                 original_layer=module, 
                 rank=Config.LORA_R,
-                alpha=Config.LORA_ALPHA,
-                dropout=Config.LORA_DROPOUT
+                alpha=Config.LORA_ALPHA
             )
 
             lora_layer.to(module.weight.device)

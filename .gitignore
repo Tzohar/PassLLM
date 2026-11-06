@@ -1,8 +1,0 @@
-__pycache__/
-*.zip
-*.pth
-*.tar.gz
-*.log
-results/
-*.pdf*
-models/checkpoints/

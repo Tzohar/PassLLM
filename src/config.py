@@ -8,10 +8,8 @@ class Config:
     # 1. DIRECTORY STRUCTURE
     # =========================================================================
     MODELS_DIR = BASE_DIR / "models"
-    TRAINING_DIR = BASE_DIR / "training"
     LOGS_DIR = BASE_DIR / "logs"
     RESULTS_DIR = BASE_DIR / "results"
-    # CACHE_DIR = BASE_DIR / "cache"
 
     # =========================================================================
     # 2. FILE PATHS
@@ -20,13 +18,8 @@ class Config:
     WEIGHTS_FILE = MODELS_DIR / "PassLLM_LoRA_Weights.pth"
     ADAPTER_CONFIG_FILE = MODELS_DIR / "adapter_config.json"
     
-    # Data Files
-    RAW_DATA_FILE = TRAINING_DIR / "passllm_raw_data.jsonl"
-    PROCESSED_DATA_FILE = TRAINING_DIR / "passllm_processed.pt"
-    
     # Logging
     APP_LOG_FILE = LOGS_DIR / "app.log"
-    TRAIN_LOG_FILE = LOGS_DIR / "training.log"
 
     # =========================================================================
     # 3. MODEL ARCHITECTURE & HARDWARE
@@ -106,47 +99,16 @@ class Config:
     VOCAB_BLACKLIST = ""
 
     # =========================================================================
-    # 6. TRAINING HYPERPARAMETERS (LoRA)
+    # 6. LORA ADAPTER CONFIGURATION
     # =========================================================================
-    LEARNING_RATE = 2e-4
-    NUM_EPOCHS = 3
-    
-    # Reduce for lower VRAM (16GB AMD GPU without 4-bit)
-    TRAIN_BATCH_SIZE = 4     
-
-    # Simulates larger batch size (BATCH_SIZE * GRAD_ACCUMULATION = effective batch)
-    GRAD_ACCUMULATION = 16
-    
-    # Max sequence length for training (reduce to save VRAM)
-    # Recommended values:
-    #   512  = Full context, best quality (24GB+ VRAM)
-    #   256  = Good balance for 16GB GPUs (default)
-    #   128  = Minimum for password data, may truncate long PII inputs (12GB or less)
-    # Note: Must be >= MAX_PASSWORD_LENGTH + typical PII prompt length (~100 tokens, depending on formatting and fields)
-    MAX_SEQ_LENGTH = 256  # Passwords are short; 256 is plenty for PII + password
-    
-    # Enable gradient checkpointing to save VRAM (trades compute for memory)
-    # True = Saves ~3-5GB VRAM, but ~20-30% slower training (use for <=16GB GPUs)
-    # False = Faster training, but requires more VRAM (use for 24GB+ GPUs)
-    USE_GRADIENT_CHECKPOINTING = True  
-    
     # Lora rank
     LORA_R = 16
     
     # Scaling, higher = more LoRA influence
     LORA_ALPHA = 32
-
-    # Percent of training samples that would render as blank
-    LORA_DROPOUT = 0.2
     
     # Target modules for Qwen/Llama architectures
     LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-
-    # Checkpoint frequency during training
-    # 0 = Only save at end of each epoch (default, recommended for small datasets)
-    # N = Save every N optimizer steps (useful for long training runs)
-    # Checkpoints are saved to models/checkpoints/ and only the last 3 are kept
-    CHECKPOINT_EVERY_STEPS = 100
 
     # =========================================================================
     # 7. SYSTEM PROMPTS & TEMPLATES
@@ -185,13 +147,12 @@ class Config:
     }
 
     @staticmethod
-    def get_formatted_input(pii_dict, target_password=None, tokenizer=None):
+    def get_formatted_input(pii_dict, tokenizer=None):
         """
-        Formats input PII for Qwen3 using chat template.
+        Formats input PII for Qwen3 using chat template for inference.
         
         Args:
             pii_dict: Dictionary of PII fields
-            target_password: Password for training, None for inference
             tokenizer: Required for specific models to apply chat template
             
         Returns: Formatted text string ready for tokenization
@@ -213,22 +174,15 @@ class Config:
         aux_str = "\n".join([f"{k}: {v}" for k, v in final_data.items()])
         user_content = f"{aux_str}\n\nPassword:"
         
-        if target_password is not None:
-            messages = [
-                {"role": "system", "content": Config.SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-                {"role": "assistant", "content": target_password}
-            ]
-        else:
-            messages = [
-                {"role": "system", "content": Config.SYSTEM_PROMPT},
-                {"role": "user", "content": user_content}
-            ]
+        messages = [
+            {"role": "system", "content": Config.SYSTEM_PROMPT},
+            {"role": "user", "content": user_content}
+        ]
         
         result = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
-            add_generation_prompt=(target_password is None)
+            add_generation_prompt=True
         )
         return result
     
@@ -251,8 +205,6 @@ DEFAULT_TORCH_DTYPE = "bfloat16"
 DEFAULT_USE_4BIT = False
 DEFAULT_LORA_R = 16
 DEFAULT_LORA_ALPHA = 32
-DEFAULT_CHECKPOINT_EVERY_STEPS = 100
-DEFAULT_USE_GRADIENT_CHECKPOINTING = True
 DEFAULT_INFERENCE_KEEP_RATIO = 0.5
 DEFAULT_NORMALIZE_PROBABILITIES = False
 DEFAULT_INFERENCE_NUM_RUNS = 50
@@ -260,7 +212,6 @@ DEFAULT_INFERENCE_NUM_RUNS = 50
 # AUTO-INITIALIZATION
 # =============================================================================
 # Automatically create the folder structure when this file is imported
-for path in [Config.MODELS_DIR, Config.TRAINING_DIR, Config.LOGS_DIR, Config.RESULTS_DIR]:
-# for path in [Config.MODELS_DIR, Config.TRAINING_DIR, Config.LOGS_DIR, Config.RESULTS_DIR, Config.CACHE_DIR]:
+for path in [Config.MODELS_DIR, Config.LOGS_DIR, Config.RESULTS_DIR]:
     path.mkdir(parents=True, exist_ok=True)
     

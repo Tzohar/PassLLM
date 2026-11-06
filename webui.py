@@ -203,13 +203,10 @@ def get_current_config_values():
         get_val("VOCAB_WHITELIST", "DEFAULT_VOCAB_WHITELIST", ""), 
         get_val("VOCAB_BLACKLIST", "DEFAULT_VOCAB_BLACKLIST", " \t\r\n"),
 
-        # Hardware & LoRA
+        # Hardware
         get_val("DEVICE", "DEFAULT_DEVICE", "cuda"), 
         get_val("TORCH_DTYPE", "DEFAULT_TORCH_DTYPE", "float16"),
-        get_val("USE_4BIT", "DEFAULT_USE_4BIT", True), 
-        get_val("USE_GRADIENT_CHECKPOINTING", "DEFAULT_USE_GRADIENT_CHECKPOINTING", True), # NEW
-        get_val("LORA_R", "DEFAULT_LORA_R", 16), 
-        get_val("LORA_ALPHA", "DEFAULT_LORA_ALPHA", 32)
+        get_val("USE_4BIT", "DEFAULT_USE_4BIT", True)
     )
 
 def reset_to_factory():
@@ -710,13 +707,6 @@ def create_ui():
                     device = gr.Radio(["cuda", "cpu", "dml"], label="Compute Device", value=config.Config.DEVICE)
                     dtype = gr.Dropdown(choices=["float16", "bfloat16", "float32"], label="Torch Datatype", value=str(config.Config.TORCH_DTYPE).split('.')[-1] if 'torch' in str(config.Config.TORCH_DTYPE) else str(config.Config.TORCH_DTYPE))
                     use_4bit = gr.Checkbox(label="4-Bit Quantization", value=config.Config.USE_4BIT)
-                    grad_checkpoint = gr.Checkbox(label="Gradient Checkpointing", value=getattr(config.Config, "USE_GRADIENT_CHECKPOINTING", True))
-
-                with gr.Accordion("🧬 LoRA Adapters", open=True, elem_id="lora_acc"):
-                    gr.HTML("<p style='margin-bottom: 10px;'><i>Fine-tuning weights for the inference engine.</i></p>")
-                    with gr.Row():
-                        lora_r = gr.Number(value=config.Config.LORA_R, label="Rank (r)", precision=0)
-                        lora_alpha = gr.Number(value=config.Config.LORA_ALPHA, label="Alpha", precision=0)
 
             with gr.Column(scale=2):
                 
@@ -790,7 +780,6 @@ def create_ui():
         num_runs.change(lambda x: update_setting("INFERENCE_NUM_RUNS", int(x)), inputs=[num_runs])
         keep_ratio.change(lambda x: update_setting("INFERENCE_KEEP_RATIO", float(x)), inputs=[keep_ratio])
         norm_probs.change(lambda x: update_setting("NORMALIZE_PROBABILITIES", bool(x)), inputs=[norm_probs])
-        grad_checkpoint.change(lambda x: update_setting("USE_GRADIENT_CHECKPOINTING", bool(x)), inputs=[grad_checkpoint])
 
         chk_upper.change(fn=lambda b, v: handle_ban_toggle("VOCAB_BIAS_UPPER", b, v), inputs=[chk_upper, bias_upper], outputs=[bias_upper])
         chk_lower.change(fn=lambda b, v: handle_ban_toggle("VOCAB_BIAS_LOWER", b, v), inputs=[chk_lower, bias_lower], outputs=[bias_lower])
@@ -806,8 +795,6 @@ def create_ui():
         device.change(lambda x: update_setting("DEVICE", str(x)), inputs=[device])
         dtype.change(lambda x: update_setting("TORCH_DTYPE", str(x)), inputs=[dtype])
         use_4bit.change(lambda x: update_setting("USE_4BIT", bool(x)), inputs=[use_4bit])
-        lora_r.change(lambda x: update_setting("LORA_R", int(x)), inputs=[lora_r])
-        lora_alpha.change(lambda x: update_setting("LORA_ALPHA", int(x)), inputs=[lora_alpha])
 
         config_outputs = [
             min_len, max_len, epsilon, batch_size, 
@@ -815,9 +802,7 @@ def create_ui():
             schedule_dropdown, 
             bias_upper, bias_lower, bias_digits, bias_symbols, 
             chk_upper, chk_lower, chk_digits, chk_symbols, 
-            whitelist, blacklist, device, dtype, use_4bit, 
-            grad_checkpoint, 
-            lora_r, lora_alpha
+            whitelist, blacklist, device, dtype, use_4bit
         ]
 
         pii_inputs = [
