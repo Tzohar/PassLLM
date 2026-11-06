@@ -6,8 +6,6 @@
 [![CUDA](https://img.shields.io/badge/CUDA-12.1-green.svg?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tzohar/PassLLM/blob/main/PassLLM_Demo.ipynb)
 [![Email](https://img.shields.io/badge/Email-PassLLM%40proton.me-blue?style=flat&logo=protonmail&logoColor=white)](mailto:passllm@proton.me)
-> **⚠️ Project Status:** This project is temporarily on hold, but updates will resume soon. I am currently rewriting some sections to speed up generation significantly.
-## About The Project
 **PassLLM is the world's most accurate targeted password guessing framework**, [outperforming other models by 15% to 45%](https://www.usenix.org/conference/usenixsecurity25/presentation/zou-yunkai) in most scenarios. It uses Personally Identifiable Information (PII) - such as _names, birthdays, phone numbers, emails and previous passwords_ - to predict the specific passwords a target is most likely to use. 
 The model fine-tunes 7B/4B parameter LLMs on millions of leaked PII records using LoRA, enabling a private, high-accuracy framework that runs entirely on consumer PCs.
 
@@ -27,8 +25,6 @@ The model fine-tunes 7B/4B parameter LLMs on millions of leaked PII records usin
 
 ### Installation 
 * **Python:** 3.10+
-* **Password Guessing:** Runs on **Any GPU**, Nvidia or AMD. A standard CPU or Mac (M1/M2) is also sufficient to run the pre-trained model.
-* **Training:** NVIDIA GPU with CUDA (RTX 3090/4090 recommended, Google Colab's free tier is often enough).
 
 ```bash
 # 1. Clone the repository
@@ -109,43 +105,7 @@ python app.py --file target.jsonl --weights models/PassLLM-Qwen3-4B-v1.0.pth --f
 * `--file`: Path to your target PII file.
 * `--fast`: Uses optimized, shallow beam search (omit for full deep search).
 * `--weights`: Path to your downloaded model weights (e.g., the .pth file).
-* `--superfast`: Very quick but less accurate, mainly for testing.
-### Training From Databases
-
-To reproduce the paper's results or train on a new breach, you must provide a dataset of **PII-to-Password pairs**.
-
-1.  **Prepare Your Dataset:**
-    Create a file at `training/passllm_raw_data.jsonl`. Each line must be a valid JSON object containing a `pii` dictionary and the target `output` password.
-    
-    *Example `passllm_raw_data.jsonl`:*
-    ```json
-    {"pii": {"name": "Alice", "birth_year": "1990"}, "output": "Alice1990!"}
-    {"pii": {"email": "bob@test.com", "sister_pw": "iloveyou"}, "output": "iloveyou2"}
-    ```
-    *Note: Ensure your keys (e.g., `first_name`, `email`) match the schema defined in `src/config.py`.*
-
-2.  **Configure Parameters:**
-    Edit `src/config.py` to match your hardware and dataset specifics:
-    ```python
-    # Hardware Settings
-    TRAIN_BATCH_SIZE = 4           # Lower to 1 or 2 if hitting OOM on consumer GPUs
-    GRAD_ACCUMULATION = 16   # Simulates larger batches (Effective Batch = 4 * 16 = 64)
-    
-    # Model Settings
-    LORA_R = 16              # Rank dimension (Keep at 16 for standard reproduction)
-    VOCAB_BIAS_DIGITS = -4.0 # Penalty strength for non-password patterns
-    ```
-
-3.  **Start Training:**
-    ```bash
-    python train.py
-    ```
-    This script automates the full pipeline:
-    * **Freezes** the base model (Mistral/Qwen).
-    * **Injects** Trainable LoRA adapters into Attention layers.
-    * **Masks** the loss function so the model only learns to predict the *password*, not the PII.
-    * **Saves** the lightweight adapter weights to `models/PassLLM_LoRA_Weights.pth`.
-
+* 
 ## Results & Demo
 
 `{"name": "Marcus Thorne", "birth_year": "1976", "username": "mthorne88", "country": "Canada"}`:
