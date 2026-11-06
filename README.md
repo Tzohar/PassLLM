@@ -23,6 +23,7 @@ The model fine-tunes 7B/4B parameter LLMs on millions of leaked PII records usin
 ## Use Guide
 > **Tip:** You can run this tool instantly without any local installation by opening our [Google Colab Demo](https://colab.research.google.com/github/Tzohar/PassLLM/blob/main/PassLLM_Demo.ipynb), providing your target's PII, and simply executing each cell in order.
 
+
 ### Installation 
 * **Python:** 3.10+
 
@@ -105,7 +106,14 @@ python app.py --file target.jsonl --weights models/PassLLM-Qwen3-4B-v1.0.pth --f
 * `--file`: Path to your target PII file.
 * `--fast`: Uses optimized, shallow beam search (omit for full deep search).
 * `--weights`: Path to your downloaded model weights (e.g., the .pth file).
-* 
+
+### Training Custom Models (`PassLLM-Trainer`)
+
+This repository (`PassLLM`) is **exclusively for inference** based on already-trained models and LoRA adapter weights. All training loops, dataset preparation utilities, and LoRA training configurations are maintained in a separate repository.
+
+If you want to train your own LoRA weights or fine-tune a model on custom PII-to-password datasets, please refer to **[PassLLM-Trainer](https://github.com/Tzohar/PassLLM-Trainer)**. Once training is complete, simply place the exported `.pth` adapter weights into the `models/` folder of this repository to run inference.
+
+  
 ## Results & Demo
 
 `{"name": "Marcus Thorne", "birth_year": "1976", "username": "mthorne88", "country": "Canada"}`:
