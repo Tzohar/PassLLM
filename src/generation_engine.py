@@ -11,6 +11,13 @@ import random
 # Key: (vocab_size, device_str) -> Value: mask_tensor
 _MASK_CACHE = {}
 
+def get_cache_layer(cache, layer_idx):
+    if hasattr(cache, "layers"):
+        return cache.layers[layer_idx].keys, cache.layers[layer_idx].values
+    if hasattr(cache, "key_cache"):
+        return cache.key_cache[layer_idx], cache.value_cache[layer_idx]
+    return cache[layer_idx]
+
 def get_alphanumeric_mask(tokenizer, true_vocab_size, device):
     '''
     The alphanumeric mask erases thousands of tokens from our vocabulary,
@@ -184,8 +191,7 @@ def dynamic_beam_search(
             if depth == 0:
                 expanded_cache = DynamicCache()
                 for layer_idx in range(len(shared_kv_cache)):
-                    # shared_kv_cache[layer_idx] is a tuple (Key, Value)
-                    k, v = shared_kv_cache[layer_idx] 
+                    k, v = get_cache_layer(shared_kv_cache, layer_idx)
                     
                     k_expanded = k.expand(current_batch_size, -1, -1, -1)
                     v_expanded = v.expand(current_batch_size, -1, -1, -1)
@@ -198,7 +204,7 @@ def dynamic_beam_search(
 
                 for layer_idx in range(num_layers):
                     # 1. Get Shared PII (Expand 1 -> Batch Size)
-                    k_shared, v_shared = shared_kv_cache[layer_idx]
+                    k_shared, v_shared = get_cache_layer(shared_kv_cache, layer_idx)
                     k_pii = k_shared.expand(current_batch_size, -1, -1, -1)
                     v_pii = v_shared.expand(current_batch_size, -1, -1, -1)
 
@@ -260,7 +266,7 @@ def dynamic_beam_search(
                 # We assume the cache has L layers. We slice the batch_idx for each layer.
                 candidate_next_cache = []
                 for layer_idx in range(len(new_kv_cache)):
-                    k_layer, v_layer = new_kv_cache[layer_idx]
+                    k_layer, v_layer = get_cache_layer(new_kv_cache, layer_idx)
                     
                     # Slice out ONLY this candidate's row (keep dim 0 as size 1)
                     # k_layer shape is (Batch, Heads, Seq, Dim). We want (1, Heads, Seq, Dim)
